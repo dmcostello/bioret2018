@@ -1,0 +1,369 @@
+---
+title: "Bioretention survey"
+author: "Dave Costello"
+date: "5/3/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(Hmisc)
+library(nlme)
+library(MASS)
+
+setwd("/Users/dcostel3/Desktop/Bioretention/2018 analysis")
+```
+
+#Data import
+```{r}
+soilchem <- read.csv(file="soil_metal_NEW.csv")
+soilchem$Cell_no <- factor(soilchem$Cell_no)
+summary(soilchem)
+
+#Outliers
+soilchem[soilchem$Sample=="30a",'Zn'] <- NA
+soilchem[soilchem$Sample=="12a",'Cu'] <- NA
+#soilchem[soilchem$Sample=="22a2",'Pb'] <- NA
+
+cell <- read.csv(file="cell_data_NEW.csv")
+cell$Location_name <- as.character(cell$Location_name)
+summary(cell)
+
+#Calculate log variables
+soilchem$logOM <- log10(soilchem$OM)
+soilchem$logBD <- log10(soilchem$BD)
+soilchem$logd50 <- log10(soilchem$d50)
+cell$logDrain <- log10(cell$Drain_area+1)
+cell$logCell <- log10(cell$Cell_area+1)
+cell$logDtoC <- cell$logDrain/cell$logCell
+
+#Merge both datasets
+fullsoil <- merge(soilchem,cell[,c(2:10,13:15)],by="Cell_no")
+summary(fullsoil)
+
+```
+
+##Secondary analyses
+###Correlations
+```{r cell correlations}
+#Calculate mean OM, BD, and d50 for cells
+chemmean <- aggregate(soilchem[,c('OM','BD','d50','logOM','logBD','logd50')],
+                      by=list(soilchem$Cell_no),median,na.rm=T)
+cellmeans <- merge(cell,chemmean,by.x="Cell_no",by.y="Group.1")
+cordata <- cellmeans[,c('Age','Cell_area','Drain_area','Kfs','LF_sus','OM','BD','d50',
+                        'logOM','logBD','logd50','logDrain','logCell','logDtoC')]
+
+#Pairwise correlations (uses Hmisc package)
+pairs(cordata)
+rcorr(as.matrix(cordata))
+
+with(cordata[cordata$Cell_area<2000,],cor.test(logCell,Drain_area))
+plot(Cell_area~Drain_area,data=cordata[cordata$Cell_area<2000,],log="y")
+  #Even without the large Mayfield Lib cite, there is a correlation between drain area and log cell area
+```
+
+Variables are not that strongly correlated to each other, which is good for multiple regression. `OM` is correlated to `BD` (neg p=0.006) and `d50` (neg p=0.016) and `BD` and `d50` are correlated (neg p=0.03). `Age` is negatively correlated to `LF_sus` (p<0.001). Interestingly, `Drain_area` is correlated to the log of `Cell_area` (p=0.001). This suggests that practicioners don't start boosting the size of cells until the drainage area gets very large. The relationship between `Age` and `Kfs` identified to Hartung's thesis is not significant when looking at cell averages. **Check with Anne about the specs for drain:cell ratios**
+
+###Tree lawn paired t-test
+```{r tree lawn magnetics}
+t.test(cell$LF_sus,cell$Adj_LF,paired=T)
+
+t.test(cell$HF_sus,cell$Adj_HF,paired=T)
+```
+
+No difference in magnetics within biorention cells and tree lawns. HF p = 0.74, LF p = 0.71.
+
+
+##Zinc analyses
+###Soil Zn content
+
+```{r Zn ME for time and space}
+plot(Zn~Age,data=fullsoil)
+
+Znmod <- lme(log(Zn)~Age*Depth*Location,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+anova(Znmod)
+plot(Znmod)
+
+#Simplify the model to remove NS terms to get better parameter estimates
+Znmodsim <- lme(log(Zn)~Age*Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+Znmodsim2 <- lme(log(Zn)~Age+Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(Znmodsim,Znmodsim2)
+summary(Znmodsim2)
+
+#Test for significance of the random effect
+Znmod_noME <- lm(log(Zn)~Age+Depth,data=fullsoil)
+anova(Znmodsim,Znmod_noME)
+  #Yes, retain random effect
+```
+
+Zn concentrations increase with age (p=0.0006). log(Zn) increases by 0.12*age (13% increase each year). Depth is important for Zn concentrations (p=0.0023) with shallow soils having ~22% more Zn (e^0.20). Location does not matter (p=0.19).
+
+
+##Other variables influencing Zn
+
+```{r}
+
+#Test models with new variables
+
+#STEP 1, including one additional
+candvar <- c('Cell_area','OM','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
+             'logOM','logBD','logd50','logDrain','logCell','logDtoC')
+loc <- which(names(fullsoil) %in% candvar)
+names(fullsoil)[loc]
+
+Znresult <- data.frame("Variable"=names(fullsoil)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Zndata <- fullsoil[,c(1,5:6,17,loc[i])]
+  Zndata <- Zndata[complete.cases(Zndata),]
+  
+  MZn1 <- lmer(log(Zn)~Age+Depth+(1|Cell_no),data=Zndata,REML=F)
+  MZn2 <- lmer(log(Zn)~Age+Depth+Zndata[[5]]+(1|Cell_no),data=Zndata,REML=F)
+  
+  Znresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
+}
+
+Znresult
+#INCLUDE logOM (p<0.001) first.
+
+#REFINE THE Zn MODEL
+MZn2 <- lmer(log(Zn)~Age+Depth+logOM+(1|Cell_no),data=fullsoil,REML=F)
+MZn2.1 <- lmer(log(Zn)~Age+Depth*logOM+(1|Cell_no),data=fullsoil,REML=F)
+anova(MZn2,MZn2.1)
+
+MZn2.2 <- lmer(log(Zn)~Age+Depth+logOM+logOM:Age+(1|Cell_no),data=fullsoil,REML=F)
+anova(MZn2.2,MZn2)
+  #No signficant interactions between OM and other variables
+
+#STEP 2 - See if other variables besides OM should be included
+candvar <- c('Cell_area','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
+             'logCell','logDrain','logDtoC','logBD','logd50')
+loc <- which(names(fullsoil) %in% candvar)
+names(fullsoil)[loc]
+
+Znresult <- data.frame("Variable"=names(fullsoil)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Zndata <- fullsoil[,c(1,5:6,14,17,loc[i])]
+  Zndata <- Zndata[complete.cases(Zndata),]
+  
+  MZn1 <- lmer(log(Zn)~Age+Depth+logOM+(1|Cell_no),data=Zndata,REML=F)
+  MZn2 <- lmer(log(Zn)~Age+Depth+logOM+Zndata[[6]]+(1|Cell_no),data=Zndata,REML=F)
+  
+  Znresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
+}
+
+Znresult
+#No other variables are worth including.
+
+#FINAL MODEL
+MZn2.1 <- lmer(log(Zn)~Age+Depth+logOM+(1|Cell_no),data=fullsoil,REML=F)
+summary(MZn2.1)
+plot(MZn2.1)
+
+MZn2.1nlme <- lme(log(Zn)~Age+Depth+log(OM),random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+anova(MZn2.1nlme)
+```
+
+Zn in biorention cells is increasing with age (p<0.001), decreased with depth (p<0.001) and is greater in soils with more organic matter (`log(OM)`, p<0.001). Across the range of biorention cells that we sampled (5-80% OM) we would see approximately a doubling in Zn in the high OM soils when compared to the low OM soils.
+
+
+##Copper analyses
+###Soil Cu content
+
+```{r Cu ME for time and space}
+plot(Cu~Age,data=fullsoil,col=as.numeric(Depth))
+
+Cumod <- lme(log(Cu)~Age*Depth*Location,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+anova(Cumod)
+plot(Cumod)
+
+#Simplify the model to remove NS terms to get better parameter estimates
+Cumodsim <- lme(log(Cu)~Age*Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+summary(Cumodsim)
+
+#Test for significance of the random effect
+Cumod_noME <- lm(log(Cu)~Age*Depth,data=fullsoil)
+anova(Cumodsim,Cumod_noME)
+  #Yes, retain random effect
+```
+
+Cu concentrations increase with age in the surface soil but are stable in deep soils (Age * Depth, p=0.007). In surface soils, Cu concentration increase 8% year over year but are stable below 10 cm depth. 
+
+##Other variables influencing Cu
+
+```{r}
+
+#Test models with new variables
+
+#STEP 1, including one additional
+candvar <- c('Cell_area','OM','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
+             'logOM','logBD','logd50','logDrain','logCell','logDtoC')
+loc <- which(names(fullsoil) %in% candvar)
+names(fullsoil)[loc]
+
+Curesult <- data.frame("Variable"=names(fullsoil)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Cudata <- fullsoil[,c(1,3,6,17,loc[i])]
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(log(Cu)~Age*Depth+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(log(Cu)~Age*Depth+Cudata[[5]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  Curesult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
+
+Curesult
+#INCLUDE logOM (p=0.006).
+
+#REFINE THE Cu MODEL
+MCu2 <- lmer(log(Cu)~Age*Depth+logOM+(1|Cell_no),data=fullsoil,REML=F)
+MCu2.1 <- lmer(log(Cu)~Age*Depth+logOM+logOM:Depth+(1|Cell_no),data=fullsoil,REML=F)
+anova(MCu2,MCu2.1)
+
+MCu2.2 <- lmer(log(Cu)~Age*Depth+logOM+logOM:Age+(1|Cell_no),data=fullsoil,REML=F)
+anova(MCu2.2,MCu2)
+
+MCu2.3 <- lmer(log(Cu)~Age*Depth*logOM+(1|Cell_no),data=fullsoil,REML=F)
+anova(MCu2.3,MCu2)
+  #No signficant interactions between OM and other variables
+
+#STEP 2 - See if other variables besides OM should be included
+candvar <- c('Cell_area','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
+             'logCell','logDrain','logDtoC','logBD','logd50')
+loc <- which(names(fullsoil) %in% candvar)
+names(fullsoil)[loc]
+
+Curesult <- data.frame("Variable"=names(fullsoil)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Cudata <- fullsoil[,c(1,3,6,14,17,loc[i])]
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(log(Cu)~Age*Depth+logOM+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(log(Cu)~Age*Depth+logOM+Cudata[[6]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  Curesult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
+
+Curesult
+#No other variables are worth including.
+
+#FINAL MODEL
+MCu2 <- lmer(log(Cu)~Age*Depth+logOM+(1|Cell_no),data=fullsoil,REML=F)
+summary(MCu2)
+plot(MCu2)
+
+MCu2nlme <- lme(log(Cu)~Age*Depth+logOM,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+anova(MCu2nlme)
+```
+
+Surface soils in biorentention cells increase in Cu concentrations as they age, but deeper soils have more stable Cu concentrations (p=0.009). Cu is greater in high OM soils and across the range of cells we measured (5-80% OM) there is a 50% greater concentration of Cu on high OM soils.
+
+
+
+##Lead analyses
+###Soil Pb content
+
+```{r Pb ME for time and space}
+plot(log10(Pb)~Age,data=fullsoil,col=as.numeric(Depth))
+
+Pbmod <- lme(log(Pb)~Age*Depth*Location,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+anova(Pbmod)
+plot(Pbmod)
+
+#Simplify the model to remove NS terms to get better parameter estimates
+Pbmodsim <- lme(log(Pb)~Age*Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+Pbmodsim2 <- lme(log(Pb)~Age+Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(Pbmodsim,Pbmodsim2)
+Pbmodsim3 <- lme(log(Pb)~Age,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(Pbmodsim2,Pbmodsim3)
+summary(Pbmodsim2)
+  #The interaction between depth and age is really close (p=0.07) so may want to maintain
+
+#Test for significance of the random effect
+Pbmod_noME <- lm(log(Pb)~Age*Depth,data=fullsoil)
+anova(Pbmodsim,Pbmod_noME)
+  #Yes, retain random effect
+```
+
+Pb concentrations increase with age, and there is marginal trend of greater increases in the surface soil when compared to deep soils (Age * Depth, p=0.07). Seems like Pb is an intermediate between Cu and Zn where Zn has no vertical stratification, Cu is strongly stratified and Pb is weakly stratified. Pb increases 4-12% (deep and surface, respectively) year-over-year.
+
+##Other variables influencing Cu
+
+```{r}
+
+#Test models with new variables
+
+#STEP 1, including one additional
+candvar <- c('Cell_area','OM','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
+             'logOM','logBD','logd50','logDrain','logCell','logDtoC')
+loc <- which(names(fullsoil) %in% candvar)
+names(fullsoil)[loc]
+
+Pbresult <- data.frame("Variable"=names(fullsoil)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Pbdata <- fullsoil[,c(1,4,6,17,loc[i])]
+  Pbdata <- Pbdata[complete.cases(Pbdata),]
+  
+  MPb1 <- lmer(log(Pb)~Age+Depth+(1|Cell_no),data=Pbdata,REML=F)
+  MPb2 <- lmer(log(Pb)~Age+Depth+Pbdata[[5]]+(1|Cell_no),data=Pbdata,REML=F)
+  
+  Pbresult$Pval[i] <- anova(MPb2,MPb1)$P[2]
+}
+
+Pbresult
+#INCLUDE logOM (p<0.001).
+
+#REFINE THE Pb MODEL
+MPb2 <- lmer(log(Pb)~Age+Depth+logOM+(1|Cell_no),data=fullsoil,REML=F)
+MPb2.1 <- lmer(log(Pb)~Age+Depth+logOM+logOM:Depth+(1|Cell_no),data=fullsoil,REML=F)
+anova(MPb2,MPb2.1)
+
+MPb2.2 <- lmer(log(Pb)~Age+Depth+logOM+logOM:Age+(1|Cell_no),data=fullsoil,REML=F)
+anova(MPb2.2,MPb2)
+  #Significant age x log(OM) interaction
+
+#STEP 2 - See if other variables besides OM should be included
+candvar <- c('Cell_area','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
+             'logCell','logDrain','logDtoC','logBD','logd50')
+loc <- which(names(fullsoil) %in% candvar)
+names(fullsoil)[loc]
+
+Pbresult <- data.frame("Variable"=names(fullsoil)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Pbdata <- fullsoil[,c(1,4,6,14,17,loc[i])]
+  Pbdata <- Pbdata[complete.cases(Pbdata),]
+  
+  MPb1 <- lmer(log(Pb)~Age+Depth+logOM+logOM:Age+(1|Cell_no),data=Pbdata,REML=F)
+  MPb2 <- lmer(log(Pb)~Age+Depth+logOM+logOM:Age+Pbdata[[6]]+(1|Cell_no),data=Pbdata,REML=F)
+  
+  Pbresult$Pval[i] <- anova(MPb2,MPb1)$P[2]
+}
+
+Pbresult
+#No other variables are worth including.
+
+#FINAL MODEL
+MPb2.2 <- lmer(log(Pb)~Age+Depth+logOM+logOM:Age+(1|Cell_no),data=fullsoil,REML=F)
+summary(MPb2.2)
+plot(MPb2.2)
+
+MPb2nlme <- lme(log(Pb)~Age+Depth+logOM+Age:logOM,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+anova(MPb2nlme)
+
+#Predictions to try and interpret the model
+newage <- seq(0,7)
+highOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("0 to 10",8),logOM=rep(log10(80),8)),re.form=~0)
+lowOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("0 to 10",8),logOM=rep(log10(5),8)),re.form=~0)
+
+plot(Pb~Age,data=fullsoil)
+lines(newage,exp(highOM))
+lines(newage,exp(lowOM))
+```
+
+Pb in bioretention soils increase through time, but only in soils that had higher OM content (Age x log(OM) p = 0.0001). Low OM content soils showed no accumulation of Pb through time, but high OM soils accumuated substantial Pb (20-150 mg/kg over a 7 year period). Deep soils overall had less Pb (p=0.016) but even deep soils with high OM accumulated Pb over time.
