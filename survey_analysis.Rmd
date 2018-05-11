@@ -3,6 +3,8 @@ title: "Bioretention survey"
 author: "Dave Costello"
 date: "5/3/2018"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -10,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(Hmisc)
 library(nlme)
+library(lme4)
 library(MASS)
 
 setwd("/Users/dcostel3/Desktop/Bioretention/2018 analysis")
@@ -34,8 +37,9 @@ summary(cell)
 soilchem$logOM <- log10(soilchem$OM)
 soilchem$logBD <- log10(soilchem$BD)
 soilchem$logd50 <- log10(soilchem$d50)
-cell$logDrain <- log10(cell$Drain_area+1)
-cell$logCell <- log10(cell$Cell_area+1)
+cell$logDrain <- log10(cell$Drain_area)
+cell$logDrain[which(is.infinite(cell$logDrain))] <- NA
+cell$logCell <- log10(cell$Cell_area)
 cell$logDtoC <- cell$logDrain/cell$logCell
 
 #Merge both datasets
