@@ -58,20 +58,25 @@ points(100,345,pch=21,cex=1) #Cell with no drainage area
 
 ###Soil metals through time
 ```{r metal through time}
-par(pin=c(3,1.5),mfrow=c(3,1),mai=c(0.2,1,0.2,1))
-plot(Zn~Age,data=fullsoil,log="y",xlab="",ylab=expression("Soil Zn (mg kg"^-1*")"),yaxt="n",ylim=c(10,1000),xaxt="n")
-axis(1,labels=F)
-logaxis(1,3,2)
+#pdf(file="cellmetal.pdf",height=5,width=4)
 
-par(mai=c(0.2,1,0.2,1))
-plot(Pb~Age,data=fullsoil,log="y",xlab="",ylab=expression("Soil Pb (mg kg"^-1*")"),yaxt="n",ylim=c(5,1000),xaxt="n")
-axis(1,labels=F)
+par(mfrow=c(3,1),oma=c(3,5,0,1),mar=c(0,0,2,0))
+plot(Zn~Age,data=fullsoil,log="y",yaxt="n",ylim=c(10,1000),xaxt="n")
 logaxis(1,3,2)
+axis(1,labels=F)
+mtext(expression("Soil Zn (mg kg"^-1*")"),2,line=3,cex=0.8)
 
-par(mai=c(1,1,0.2,1))
-plot(Cu~Age,data=fullsoil,log="y",xlab="Age (yr)",ylab=expression("Soil Cu (mg kg"^-1*")"),yaxt="n",ylim=c(5,1000))
+par(mar=c(1,0,1,0))
+plot(Pb~Age,data=fullsoil,log="y",yaxt="n",ylim=c(5,1000),xaxt="n")
+logaxis(1,3,2)
+axis(1,labels=F)
+mtext(expression("Soil Pb (mg kg"^-1*")"),2,line=3,cex=0.8)
+
+par(mar=c(2,0,0,0))
+plot(Cu~Age,data=fullsoil,log="y",yaxt="n",ylim=c(5,1000))
 logaxis(0,3,2)
+mtext(expression("Soil Cu (mg kg"^-1*")"),2,line=3,cex=0.8)
+mtext("Age (yr)",1,line=3,cex=0.8)
 
-#dev.copy(pdf,'cellmetal.pdf')
 #dev.off()
 ```
