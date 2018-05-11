@@ -3,10 +3,39 @@ title: "Biorentention plots"
 author: "Dave Costello"
 date: "5/10/2018"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+
+#Data import
+```{r}
+soilchem <- read.csv(file="soil_metal_NEW.csv")
+soilchem$Cell_no <- factor(soilchem$Cell_no)
+summary(soilchem)
+
+#Outliers
+soilchem[soilchem$Sample=="30a",'Zn'] <- NA
+soilchem[soilchem$Sample=="12a",'Cu'] <- NA
+
+cell <- read.csv(file="cell_data_NEW.csv")
+cell$Location_name <- as.character(cell$Location_name)
+summary(cell)
+
+#Merge both datasets
+fullsoil <- merge(soilchem,cell[,c(2:10)],by="Cell_no")
+summary(fullsoil)
+
+```
+
+
+###Bioretention cell size
+```{r}
+plot(Cell_area~Drain_area,data=cell,log="xy",ylim=c(10,10000),xlim=c(100,10000))
+```
 
