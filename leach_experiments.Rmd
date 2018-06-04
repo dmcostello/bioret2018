@@ -1,0 +1,93 @@
+---
+title: "Leaching experiments"
+author: "Dave Costello"
+date: "6/4/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(AER) #For function tobit
+library(lmtest) #For function lrtest
+library(MASS)
+
+setwd("/Users/dcostel3/Desktop/Bioretention/2018 analysis")
+```
+
+###References for Tobit/censored regression
+Tobit/censored regression
+http://seananderson.ca/2014/05/18/gamma-hurdle.html
+http://www.ats.ucla.edu/stat/r/dae/tobit.htm
+https://cran.r-project.org/web/packages/censReg/vignettes/censReg.pdf
+http://stats.stackexchange.com/questions/149091/censored-regression-in-r (p of <DL)
+
+
+## Import data
+```{r}
+#Non-salty tests
+leach <- read.csv(file="leach.csv")
+leach$Cell_no <- factor(leach$Cell_no) #Change cell number to a discrete factor
+leach$Curemove <- with(leach,(Cu_in-Cu_conc)/Cu_in) #Calculate % removal 
+leach$Curemove[leach$Curemove<0] <-0 #Set all negative "removals" (i.e., soils added Cu) to zero
+
+#Cell characteristics (from survey analysis)
+summary(cellmeans)
+#Replace NA for drain area and ratio with means
+cellmeans$logDrain[which(is.na(cellmeans$logDrain))] <- mean(cellmeans$logDrain,na.rm=T)
+cellmeans$logDtoC[which(is.na(cellmeans$logDtoC))] <- mean(cellmeans$logDtoC,na.rm=T)
+newleach <- merge(leach,cellmeans[,c(1,8:10,13:16,20:22)],by="Cell_no",all.x=T,all.y=F)
+
+#Subsets of the different metal treatments
+leachH <- subset(newleach,newleach$Metal=="High")
+#leachL <- subset(leach,leach$Metal=="Low")
+#leachN <- subset(leach,leach$Metal=="No")
+
+
+#Salty water
+saltleach <- read.csv(file="saltleach.csv")
+saltleach$Cell_no <- factor(saltleach$Cell_no) 
+summary(leach)
+
+```
+
+*Thresholds for tobit*
+Cu minimum DL = 4 µg/L
+High Cu stormwater (200 µg/L) removal min=0 and max=0.95
+Low Cu stormwater (20 µg/L) removal min=0 and max=0.8
+
+
+##Leaching statistics (censored regression)
+###Cu leaching
+```{r}
+#High metal stormwater
+plot(Curemove~Cell_no,data=leachH)
+
+#Test for location
+CuH0 <- tobit(Curemove~frailty.gaussian(Cell_no),data=leachH,left=0,right=0.95)
+CuHl <- tobit(Curemove~Location+frailty.gaussian(Cell_no),data=leachH,left=0,right=0.95)
+lrtest(CuH0,CuHl)
+  #Location of core doesn't matter so treat all the same
+
+#Test for variables that may affect removal rates
+###ADD IN BACKGROUND METAL CONC###
+CuHnull <- tobit(Curemove~1,data=leachH,left=0,right=0.95)
+CuHfull <- tobit(Curemove~Age+Kfs+Retrofit+logDrain+logCell+logDtoC+logOM+logBD+logd50,data=leachH,left=0,right=0.95)
+
+add1(CuHnull,scope=CuHfull,test="Chisq")
+CuH2 <- tobit(Curemove~Retrofit,data=leachH,left=0,right=0.95)
+lrtest(CuH0,CuH2)
+add1(CuH2,scope=CuHfull,test="Chisq")
+
+plot(Curemove~Retrofit,data=leachH)
+CuH2 <- update(CuH0,~.+Retrofit)
+summary(CuH2)
+
+###Why can't I also fit a random effect of cell number?
+
+nullmod <- lme(Curemove~1,random=~1|Cell_no,data=leachH,method="ML")
+mod <- lme(Curemove~Retrofit,random=~1|Cell_no,data=leachH,method="ML")
+anova(nullmod,mod)
+summary(mod)
+```
+

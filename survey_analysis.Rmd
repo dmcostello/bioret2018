@@ -62,12 +62,23 @@ cordata <- cellmeans[,c('Age','Cell_area','Drain_area','Kfs','LF_sus','OM','BD',
 pairs(cordata)
 rcorr(as.matrix(cordata))
 
-with(cordata[cordata$Cell_area<2000,],cor.test(logCell,Drain_area))
-plot(Cell_area~Drain_area,data=cordata[cordata$Cell_area<2000,],log="y")
-  #Even without the large Mayfield Lib cite, there is a correlation between drain area and log cell area
+#Cell to drainage sizes
+with(cordata[cordata$Cell_area<2000,],cor.test(logCell,logDrain))
+plot(Cell_area~Drain_area,data=cordata[cordata$Cell_area<2000,],log="xy")
+
+#Regular regression
+rmod <- lm(logCell~logDrain,data=cordata)
+summary(rmod)
+#Regression testing slope = 1
+rmod2 <- lm(logCell~logDrain+offset(logDrain),data=cordata)
+summary(rmod2)
+
+10^(rmod2$coef[1])
+
+#Even without the large Mayfield Lib cite, there is a correlation between drain area and log cell area
 ```
 
-Variables are not that strongly correlated to each other, which is good for multiple regression. `OM` is correlated to `BD` (neg p=0.006) and `d50` (neg p=0.016) and `BD` and `d50` are correlated (neg p=0.03). `Age` is negatively correlated to `LF_sus` (p<0.001). Interestingly, `Drain_area` is correlated to the log of `Cell_area` (p=0.001). This suggests that practicioners don't start boosting the size of cells until the drainage area gets very large. The relationship between `Age` and `Kfs` identified to Hartung's thesis is not significant when looking at cell averages. **Check with Anne about the specs for drain:cell ratios**
+Variables are not that strongly correlated to each other, which is good for multiple regression. `OM` is correlated to `BD` (neg p=0.006) and `d50` (neg p=0.016) and `BD` and `d50` are correlated (neg p=0.03). `Age` is negatively correlated to `LF_sus` (p<0.001). The relationship between `Age` and `Kfs` identified to Hartung's thesis is not significant when looking at cell averages. Log of `Drain_area` is correlated to the log of `Cell_area` (p<0.001), but the variables are not correlated on arithmetic scale. Also, cells are oversizes relative to recommendations (5-10%), with our average cell 29% of the area of impervious drainage area. Drainage and cells are proportional on a log scale (slope =1, p = 0.9) This suggests that practicioners size the biorentention cells on an order of magnitude difference relative to impervious drainage area and oversize them substantially.
 
 ###Tree lawn paired t-test
 ```{r tree lawn magnetics}
@@ -267,7 +278,6 @@ anova(MCu2nlme)
 Surface soils in biorentention cells increase in Cu concentrations as they age, but deeper soils have more stable Cu concentrations (p=0.009). Cu is greater in high OM soils and across the range of cells we measured (5-80% OM) there is a 50% greater concentration of Cu on high OM soils.
 
 
-
 ##Lead analyses
 ###Soil Pb content
 
@@ -295,7 +305,7 @@ anova(Pbmodsim,Pbmod_noME)
 
 Pb concentrations increase with age, and there is marginal trend of greater increases in the surface soil when compared to deep soils (Age * Depth, p=0.07). Seems like Pb is an intermediate between Cu and Zn where Zn has no vertical stratification, Cu is strongly stratified and Pb is weakly stratified. Pb increases 4-12% (deep and surface, respectively) year-over-year.
 
-##Other variables influencing Cu
+##Other variables influencing Pb
 
 ```{r}
 
