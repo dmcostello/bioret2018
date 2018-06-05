@@ -21,7 +21,6 @@ setwd("/Users/dcostel3/Desktop/Bioretention/2018 analysis")
 #Data import
 ```{r}
 soilchem <- read.csv(file="soil_metal_NEW.csv")
-soilchem$Cell_no <- factor(soilchem$Cell_no)
 summary(soilchem)
 
 #Outliers
@@ -89,6 +88,16 @@ t.test(cell$HF_sus,cell$Adj_HF,paired=T)
 
 No difference in magnetics within biorention cells and tree lawns. HF p = 0.74, LF p = 0.71.
 
+###Retrofit t-tests
+```{r}
+t.test(logBD~Retrofit,data=cellmeans)
+t.test(logOM~Retrofit,data=cellmeans)
+t.test(Kfs~Retrofit,data=cellmeans)
+t.test(logd50~Retrofit,data=cellmeans)
+t.test(LF_sus~Retrofit,data=cellmeans)
+```
+
+Bulk density is lower in new builds (p=0.004) but none of the other soil properties differ.
 
 ##Zinc analyses
 ###Soil Zn content
@@ -123,7 +132,7 @@ Zn concentrations increase with age (p=0.0006). log(Zn) increases by 0.12*age (1
 
 #STEP 1, including one additional
 candvar <- c('Cell_area','OM','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
-             'logOM','logBD','logd50','logDrain','logCell','logDtoC')
+             'logOM','logBD','logd50','logDrain','logCell','logDtoC','Retrofit')
 loc <- which(names(fullsoil) %in% candvar)
 names(fullsoil)[loc]
 
@@ -153,7 +162,7 @@ anova(MZn2.2,MZn2)
 
 #STEP 2 - See if other variables besides OM should be included
 candvar <- c('Cell_area','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
-             'logCell','logDrain','logDtoC','logBD','logd50')
+             'logCell','logDrain','logDtoC','logBD','logd50','Retrofit')
 loc <- which(names(fullsoil) %in% candvar)
 names(fullsoil)[loc]
 
@@ -214,7 +223,7 @@ Cu concentrations increase with age in the surface soil but are stable in deep s
 
 #STEP 1, including one additional
 candvar <- c('Cell_area','OM','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
-             'logOM','logBD','logd50','logDrain','logCell','logDtoC')
+             'logOM','logBD','logd50','logDrain','logCell','logDtoC','Retrofit')
 loc <- which(names(fullsoil) %in% candvar)
 names(fullsoil)[loc]
 
@@ -247,7 +256,7 @@ anova(MCu2.3,MCu2)
 
 #STEP 2 - See if other variables besides OM should be included
 candvar <- c('Cell_area','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
-             'logCell','logDrain','logDtoC','logBD','logd50')
+             'logCell','logDrain','logDtoC','logBD','logd50','Retrofit')
 loc <- which(names(fullsoil) %in% candvar)
 names(fullsoil)[loc]
 
@@ -313,7 +322,7 @@ Pb concentrations increase with age, and there is marginal trend of greater incr
 
 #STEP 1, including one additional
 candvar <- c('Cell_area','OM','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
-             'logOM','logBD','logd50','logDrain','logCell','logDtoC')
+             'logOM','logBD','logd50','logDrain','logCell','logDtoC','Retrofit')
 loc <- which(names(fullsoil) %in% candvar)
 names(fullsoil)[loc]
 
@@ -343,7 +352,7 @@ anova(MPb2.2,MPb2)
 
 #STEP 2 - See if other variables besides OM should be included
 candvar <- c('Cell_area','BD','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
-             'logCell','logDrain','logDtoC','logBD','logd50')
+             'logCell','logDrain','logDtoC','logBD','logd50','Retrofit')
 loc <- which(names(fullsoil) %in% candvar)
 names(fullsoil)[loc]
 
