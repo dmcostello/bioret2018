@@ -134,3 +134,9 @@ lines(xAge,10^yZnS,col="black")
 
 dev.off()
 ```
+
+###Cu removal rates
+```{r removal rates}
+
+```
+
