@@ -8,8 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(AER) #For function tobit
-library(lmtest) #For function lrtest
+library(boot)
 library(MASS)
 
 setwd("/Users/dcostel3/Desktop/Bioretention/2018 analysis")
@@ -31,8 +30,12 @@ leach <- read.csv(file="leach.csv")
 #Outliers
 leach$Cu_conc[leach$Cu_conc>200] <- NA
 
+#Removal rates
 leach$Curemove <- with(leach,(Cu_in-Cu_conc)/Cu_in) #Calculate % removal 
 leach$Curemove[leach$Curemove<0] <-0 #Set all negative "removals" (i.e., soils added Cu) to zero
+leach$Znremove <- with(leach,(Zn_in-Zn_conc)/Zn_in) #Calculate % removal 
+leach$Znremove[leach$Znremove<0] <-0 #Set all negative "removals" (i.e., soils added Zn) to zero
+leach$Pbremove <- with(leach,(Pb_in-Pb_conc)/Pb_in) #Calculate % removal 
 
 #Cell characteristics (from survey analysis)
 soilchem <- read.csv(file="soil_metal_NEW.csv")
@@ -54,16 +57,16 @@ cell$logDrain[which(is.infinite(cell$logDrain))] <- mean(cell$logDrain[is.finite
 cell$logCell <- log10(cell$Cell_area)
 cell$logDtoC <- cell$logDrain/cell$logCell
 
-chemmean <- aggregate(soilchem[,c('OM','BD','d50','logOM','logBD','logd50')],
+chemmean <- aggregate(soilchem[,c('OM','BD','d50','logOM','logBD','logd50','Cu','Zn','Pb')],
                       by=list(soilchem$Cell_no),median,na.rm=T)
 cellmeans <- merge(cell,chemmean,by.x="Cell_no",by.y="Group.1")
 
-newleach <- merge(leach,cellmeans[,c(1,8:10,13:16,20:22)],by="Cell_no",all.x=T,all.y=F)
+newleach <- merge(leach,cellmeans[,c(1,8:10,13:16,20:25)],by="Cell_no",all.x=T,all.y=F)
 
 #Subsets of the different metal treatments
 leachH <- subset(newleach,newleach$Metal=="High")
-#leachL <- subset(leach,leach$Metal=="Low")
-#leachN <- subset(leach,leach$Metal=="No")
+leachL <- subset(newleach,newleach$Metal=="Low")
+leachN <- subset(newleach,newleach$Metal=="No")
 
 
 #Salty water
@@ -73,48 +76,238 @@ summary(leach)
 
 ```
 
-*Thresholds for tobit*
-Cu minimum DL = 4 µg/L
-High Cu stormwater (200 µg/L) removal min=0 and max=0.95
-Low Cu stormwater (20 µg/L) removal min=0 and max=0.8
-
-
-##Leaching statistics (censored regression)
+##Leaching statistics (mixed effects model with logit transformed removal)
 ###Cu leaching
-```{r}
-#High metal stormwater
+```{r High metal stormwater}
+plot(leachH$Curemove,ylim=c(0,1)) #No values of zero removal
+
 plot(Curemove~Cell_no,data=leachH)
+plot(logit(Curemove)~Retrofit,data=leachH)
 
-#Test for location
-CuH0 <- tobit(Curemove~frailty(Cell_no),data=leachH,left=0,right=0.95)
-CuHl <- tobit(Curemove~Location+frailty.gaussian(Cell_no),data=leachH,left=0,right=0.95)
-lrtest(CuH0,CuHl)
-  #Location of core doesn't matter so treat all the same
+CuH0r <- lmer(logit(Curemove)~1+(1|Cell_no),data=leachH,REML=F)
+CuH0 <- lm(logit(Curemove)~1,data=leachH)
+anova(CuH0r,CuH0)
+  #Random effect is significant (p<0.001)
 
-#Test for variables that may affect removal rates
-###ADD IN BACKGROUND METAL CONC###
-CuHnull <- tobit(Curemove~frailty(Cell_no),data=leachH,left=0,right=0.95)
-CuHfull <- tobit(Curemove~Age+Kfs+Retrofit+logDrain+logCell+logDtoC+logOM+logBD+logd50+frailty(Cell_no),data=leachH,left=0,right=0.95)
+#Step 1, include one addtional variable
+candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu','Location')
+loc <- which(names(leachH) %in% candvar)
+names(leachH)[loc]
 
-add1(CuHnull,scope=CuHfull,test="Chisq")
-CuH2 <- tobit(Curemove~Retrofit+frailty(Cell_no),data=leachH,left=0,right=0.95)
-lrtest(CuH0,CuH2)
-add1(CuH2,scope=CuHfull,test="Chisq")
+CuHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
 
-plot(Curemove~Retrofit,data=leachH)
-CuH2 <- update(CuH0,~.+Retrofit)
-summary(CuH2)
+for(i in 1:length(candvar)){
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove')],leachH[,loc[i]])
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(logit(Curemove)~(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Cudata[[3]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
 
-###Why can't I also fit a random effect of cell number?
-###USE LOGIT TRANSFORMATION RATHER THAN TOBIT MODELS
-###INCLUDE BACKGROUND METAL CONCENTRATIONS IN MODELS BEFORE PROCEEDING
+CuHresult[order(CuHresult$Pval),] #Add Retrofit
 
-nullmod <- lme(logit(Curemove)~1,random=~1|Cell_no,data=leachH,method="ML",na.action=na.omit)
-fullmod <- lme(logit(Curemove)~Age+Kfs+Retrofit+logDrain+logCell+logDtoC+logOM+logBD+logd50,random=~1|Cell_no,data=leachH,method="ML",na.action=na.omit)
-add1(nullmod,scope=fullmod,test="Chisq")
-mod <- lme(logit(Curemove)~Retrofit,random=~1|Cell_no,data=leachH,method="ML",na.action=na.omit)
-anova(nullmod,mod)
-add1(mod,scope=fullmod,test="Chisq")
-summary(mod)
+#Step 2, check for additional variables
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu','Location')
+loc <- which(names(leachH) %in% candvar)
+names(leachH)[loc]
+
+CuHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit')],leachH[,loc[i]])
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(logit(Curemove)~Retrofit+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Retrofit+Cudata[[4]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
+
+CuHresult[order(CuHresult$Pval),] #Don't add anything else
+
+#FINAL MODEL
+CuH <- lmer(logit(Curemove)~Retrofit+(1|Cell_no),data=leachH,REML=F)
+summary(CuH)
+plot(CuH)
+
+inv.logit(predict(CuH,newdata=list(Retrofit="yes"),re.form=~0))
+inv.logit(predict(CuH,newdata=list(Retrofit="no"),re.form=~0))
 ```
 
+A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.0008). Retrofit cells only removed 79% of added Cu but new builds removed 90%. 
+
+```{r Low metal stormwater}
+plot(leachL$Curemove,ylim=c(0,1)) #Four values of zero
+sort(leachL$Curemove)
+leachL$Curemovenew <- leachL$Curemove+0.15 #Add the minimum non-zero value
+
+plot(Curemovenew~Cell_no,data=leachL)
+plot(logit(Curemovenew)~Retrofit,data=leachL)
+
+CuL0r <- lmer(logit(Curemovenew)~1+(1|Cell_no),data=leachL,REML=F)
+CuL0 <- lm(logit(Curemovenew)~1,data=leachL)
+anova(CuL0r,CuL0)
+  #Random effect is significant (p<0.001)
+
+#Step 1, include one addtional variable
+candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu','Location')
+loc <- which(names(leachL) %in% candvar)
+names(leachL)[loc]
+
+CuLresult <- data.frame("Variable"=names(leachL)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Cudata <- cbind(leachL[,c('Cell_no','Curemove')],leachL[,loc[i]])
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(logit(Curemovenew)~(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemovenew)~Cudata[[3]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  CuLresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
+
+CuLresult[order(CuLresult$Pval),] #Add Retrofit
+
+#Step 2, check for additional variables
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu','Location')
+loc <- which(names(leachL) %in% candvar)
+names(leachL)[loc]
+
+CuLresult <- data.frame("Variable"=names(leachL)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Cudata <- cbind(leachL[,c('Cell_no','Curemove','Retrofit')],leachL[,loc[i]])
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(logit(Curemovenew)~Retrofit+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemovenew)~Retrofit+Cudata[[4]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  CuLresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
+
+CuLresult[order(CuLresult$Pval),] #Don't add anything else
+
+#FINAL MODEL
+CuL <- lmer(logit(Curemovenew)~Retrofit+(1|Cell_no),data=leachL,REML=F)
+summary(CuL)
+plot(CuL)
+
+inv.logit(predict(CuL,newdata=list(Retrofit="yes"),re.form=~0))-0.15
+inv.logit(predict(CuL,newdata=list(Retrofit="no"),re.form=~0))-0.15
+
+plot(Curemove~Retrofit,data=leachL)
+```
+
+A intermediate proportion of Cu was removed from low metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.017). Retrofit cells only removed 61% of added Cu but new builds removed 74%. Same pattern as what was observed for high metal stormwater.
+
+###Zn leaching
+```{r High metal stormwater}
+plot(leachH$Znremove,ylim=c(0,1)) #No values of zero removal
+sort(leachH$Znremove) #Two zeros removals
+
+#leachH$Znremovenew <- leachH$Znremove+0.07
+#Cannot just add the lowest value b/c cause higher values to be >1
+#Do not want to delete rows because valuable information
+#Change 0 to lowest values
+leachH$Znremove[leachH$Znremove==0] = 0.07
+
+plot(Znremove~Cell_no,data=leachH)
+
+ZnH0r <- lmer(logit(Znremove)~1+(1|Cell_no),data=leachH,REML=F)
+ZnH0 <- lm(logit(Znremove)~1,data=leachH)
+anova(ZnH0r,ZnH0)
+  #Random effect is significant (p=0.001)
+
+#Step 1, include one addtional variable
+candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu','Location')
+loc <- which(names(leachH) %in% candvar)
+names(leachH)[loc]
+
+ZnHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Zndata <- cbind(leachH[,c('Cell_no','Znremove')],leachH[,loc[i]])
+  Zndata <- Zndata[complete.cases(Zndata),]
+  
+  MZn1 <- lmer(logit(Znremove)~(1|Cell_no),data=Zndata,REML=F)
+  MZn2 <- lmer(logit(Znremove)~Zndata[[3]]+(1|Cell_no),data=Zndata,REML=F)
+  
+  ZnHresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
+}
+
+ZnHresult[order(ZnHresult$Pval),] #Add Retrofit
+
+#Step 2, check for additional variables
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu','Location')
+loc <- which(names(leachH) %in% candvar)
+names(leachH)[loc]
+
+ZnHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Zndata <- cbind(leachH[,c('Cell_no','Znremove','Retrofit')],leachH[,loc[i]])
+  Zndata <- Zndata[complete.cases(Zndata),]
+  
+  MZn1 <- lmer(logit(Znremove)~Retrofit+(1|Cell_no),data=Zndata,REML=F)
+  MZn2 <- lmer(logit(Znremove)~Retrofit+Zndata[[4]]+(1|Cell_no),data=Zndata,REML=F)
+  
+  ZnHresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
+}
+
+ZnHresult[order(ZnHresult$Pval),] #Add location
+
+#Second step model
+ZnH1 <- lmer(logit(Znremove)~Retrofit+Location+(1|Cell_no),data=leachH,REML=F)
+ZnH2 <- lmer(logit(Znremove)~Retrofit*Location+(1|Cell_no),data=leachH,REML=F)
+anova(ZnH1,ZnH2)
+#Interaction is not signficant
+
+#Step 3, check for additional variables
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu')
+loc <- which(names(leachH) %in% candvar)
+names(leachH)[loc]
+
+ZnHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Zndata <- cbind(leachH[,c('Cell_no','Znremove','Retrofit','Location')],leachH[,loc[i]])
+  Zndata <- Zndata[complete.cases(Zndata),]
+  
+  MZn1 <- lmer(logit(Znremove)~Retrofit+(1|Cell_no),data=Zndata,REML=F)
+  MZn2 <- lmer(logit(Znremove)~Retrofit+Zndata[[5]]+(1|Cell_no),data=Zndata,REML=F)
+  
+  ZnHresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
+}
+
+ZnHresult[order(ZnHresult$Pval),] #No more variables to add
+
+#FINAL MODEL 
+ZnH <- lmer(logit(Znremove)~Retrofit+Location+(1|Cell_no),data=leachH,REML=F)
+summary(ZnH)
+plot(ZnH)
+
+inv.logit(predict(ZnH,newdata=list(Retrofit="yes",Location="Inflow"),re.form=~0))
+inv.logit(predict(ZnH,newdata=list(Retrofit="yes",Location="Drain"),re.form=~0))
+inv.logit(predict(ZnH,newdata=list(Retrofit="no",Location="Inflow"),re.form=~0))
+inv.logit(predict(ZnH,newdata=list(Retrofit="no",Location="Drain"),re.form=~0))
+
+boxplot(Curemove~Location*Retrofit,data=leachL)
+```
+
+Zn removal was very efficient with a lot of soils removing almost all of the 960 µg/L of added Zn. The removal rates were modified by construction type (retrofit vs. new build) and location of sampling. Retrofits yielded less efficient metal removal than new builds and soils near inflow points removed more metal than drains. Log odds decreased -1.8 when retrofitted and log odds decreased -0.92 when soils were near the drain.
+
+###Clean stormwater additions
+
+```{r Clean stormwater}
+plot(leachN$Cu_conc) #Six non-zero values (out of 97 cores)
+
+plot(Cu_conc~Cell_no,data=leachN)
+
+CuN0r <- lmer(Cu_conc~1+(1|Cell_no),data=leachN,REML=F)
+CuN0 <- lm(Cu_conc~1,data=leachN)
+anova(CuN0r,CuN0)
+
+#Cell number does not even explain any of the variation in Cu release
+```
