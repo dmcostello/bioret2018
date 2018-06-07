@@ -513,24 +513,52 @@ No leach cores released Pb above the DL. No need for statistics.
 
 ###Salty stormwater comparisons
 ```{r salty metals Cu}
-sort(saltLH$Curemove) #Seven zeros removals
-#Set zeros to 1-max (0.05)
-saltLH$Curemove[saltLH$Curemove==0] = 0.05
+##Initial scoping models (full and minimum model)
+  #Full model
+CuSfull <- tobit(log(Cu_conc)~Cell_no*Location*Metal*Salt,data=saltleach,left=log(4))
+  #Minimum (no variables) model
+CuSnull <- tobit(log(Cu_conc)~1,data=saltleach,left=log(4))
 
-boxplot(Curemove~Salt*Metal,data=saltLH)
+##Forward addition of variables
+##add1 checks to see if any variables should be added
+##the option test="Chisq" runs a likelihood ratio test
 
-CuSmod <- lmer(logit(Curemove)~Salt*Metal+(1|Cell_no),data=saltLH)
-CuSmod1 <- update(CuSmod,~.-Salt:Metal)
-anova(CuSmod,CuSmod1) #Interaction is not signficant (p=0.83)
-CuSmod2 <- update(CuSmod1,~.-Salt)
-anova(CuSmod1,CuSmod2) #Salt is not significant (p=0.76)
-CuSmod3 <- update(CuSmod1,~.-Metal)
-anova(CuSmod1,CuSmod3) #Metal is significant (p<0.001)
+add1(CuSnull,scope=CuSfull,test="Chisq")
+CuS1 <- update(CuSnull,~.+Cell_no)
 
-#CuSmod <- lme(logit(Curemove)~Salt*Metal,random=~1|Cell_no,data=saltLH)
-#anova(CuSmod)
+add1(CuS1,scope=CuSfull,test="Chisq")
+CuS2 <- update(CuS1,~.+Metal)
 
-boxplot(log(Cu_conc)~Salt*Metal,data=saltN)
+add1(CuS2,scope=CuSfull,test="Chisq")
+CuS3 <- update(CuS2,~.+Location)
+
+add1(CuS3,scope=CuSfull,test="Chisq")
+CuS4 <- update(CuS3,~.+Cell_no:Location)
+
+add1(CuS4,scope=CuSfull,test="Chisq")
+CuS5 <- update(CuS4,~.+Cell_no:Metal)
+
+add1(CuS5,scope=CuSfull,test="Chisq")
+#Nothing more needs to be added
+
+drop1(CuS5,test="Chisq")
+#Use drop1 to double check that nothing added is now insignificant
+#Here everything looks good and should stay. CuS5 is the final model
+
+summary(CuS5)
+##Plot to explain significant differences
+
+boxplot(log(Cu_conc)~Metal*Cell_no,data=saltleach,las=2)
+#Cell 21 leached in all treatments, cell 22 leached just in high, cell 23 leached rarely
+boxplot(log(Cu_conc)~Location*Cell_no,data=saltleach,las=2)
+#Cell 21 leached more in inflow, cell 22 leached more from drain, cell 23 rarely leached 
+
+saltleach$Cu_pred <- fitted(CuS5) #Predicted values from the final model
+mu_Cu <- with(saltleach,tapply(Cu_pred,list(Location,Cell_no,Metal),mean))
+  #Create a table of the significant variables for which we want to calculate p Cu > DL
+sigma_Cu <- CuS5$scale
+(p0 <- 1-pnorm((mu_Cu-log(4))/CuS5$scale))
+  #This is a table of probabilities of samples below DL
 ```
 
 ```{r salty metals Zn}
@@ -544,48 +572,46 @@ ZnSnull <- tobit(log(Zn_conc)~1,data=saltleach,left=log(2))
 ##add1 checks to see if any variables should be added
 ##the option test="Chisq" runs a likelihood ratio test
 
-add1(Pbnull,scope=Pbfull,test="Chisq")
-Pb1 <- update(Pbnull,~.+Cell_no)
+add1(ZnSnull,scope=ZnSfull,test="Chisq")
+ZnS1 <- update(ZnSnull,~.+Cell_no)
 
-add1(Pb1,scope=Pbfull,test="Chisq")
-Pb2 <- update(Pb1,~.+Salt)
+add1(ZnS1,scope=ZnSfull,test="Chisq")
+ZnS2 <- update(ZnS1,~.+Location)
 
-add1(Pb2,scope=Pbfull,test="Chisq")
-Pb3 <- update(Pb2,~.+Metal)
-#Here I added a variable even though p > 0.05 because I didn't want to miss any
-#potential interactions. Using a addition threshold of p < 0.1 is fine for this
-#approach to model building
+add1(ZnS2,scope=ZnSfull,test="Chisq")
+ZnS3 <- update(ZnS2,~.+Cell_no:Location)
 
-add1(Pb3,scope=Pbfull,test="Chisq")
-Pb4 <- update(Pb3,~.+Location)
-#Same here, add p < 0.1
+add1(ZnS3,scope=ZnSfull,test="Chisq")
+ZnS4 <- update(ZnS3,~.+Metal)
 
-add1(Pb4,scope=Pbfull,test="Chisq")
-Pb5 <- update(Pb4,~.+Cell_no:Location)
-#This is where that became important since adding location was required to add 
-#the Cell x location interaction
+add1(ZnS4,scope=ZnSfull,test="Chisq")
+ZnS5 <- update(ZnS4,~.+Cell_no:Metal)
 
-add1(Pb5,scope=Pbfull,test="Chisq")
-#Nothing else needs to be added
+add1(ZnS5,scope=ZnSfull,test="Chisq")
+ZnS6 <- update(ZnS5,~.+Salt)
 
-drop1(Pb5,test="Chisq")
+add1(ZnS6,scope=ZnSfull,test="Chisq")
+#Nothing more needs to be added
+
+drop1(ZnS6,test="Chisq")
 #Use drop1 to double check that nothing added is now insignificant
-#Here everything looks good and should stay. Pb5 is the final model
+#Here everything looks good and should stay. ZnS6 is the final model
 
+summary(ZnS6)
 ##Plot to explain significant differences
 
-boxplot(log(Pb_conc)~Cell_no*Location,data=saltleach)
-#Cell 21 leached Pb, but only in the inflow
-boxplot(log(Pb_conc)~Metal,data=saltleach)
-#High Pb > Low Pb = No Pb
-boxplot(log(Pb_conc)~Salt,data=saltleach)
-#High salt leached more metal than low salt
+boxplot(log(Zn_conc)~Salt,data=saltleach)
+#High salt stormwater leached more metals than low salt
+boxplot(log(Zn_conc)~Metal*Cell_no,data=saltleach,las=2)
+#Cell 21 leached in all treatments, cell 22 leached just in high, cell 23 leached rarely
+boxplot(log(Zn_conc)~Location*Cell_no,data=saltleach,las=2)
+#Cell 21 & 23 leached more in inflow, cell 22 leached more from drain 
 
-saltleach$Pb_pred <- fitted(Pb5) #Predicted values from the final model
-mu_Pb <- with(saltleach,tapply(Pb_pred,list(Location,Cell_no,Metal,Salt),mean))
+saltleach$Zn_pred <- fitted(ZnS6) #Predicted values from the final model
+mu_Zn <- with(saltleach,tapply(Zn_pred,list(Location,Cell_no,Metal,Salt),mean))
   #Create a table of the significant variables for which we want to calculate p Cu > DL
-sigma_Pb <- Pb5$scale
-(p0 <- 1-pnorm((mu_Pb-log(10))/Pb5$scale))
+sigma_Zn <- ZnS6$scale
+(p0 <- 1-pnorm((mu_Zn-log(2))/ZnS6$scale))
   #This is a table of probabilities of samples below DL
 ```
 
