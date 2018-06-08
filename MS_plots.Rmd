@@ -23,7 +23,7 @@ library(lme4)
 
 
 #Data import
-```{r}
+```{r survey data}
 soilchem <- read.csv(file="soil_metal_NEW.csv")
 soilchem$Cell_no <- factor(soilchem$Cell_no)
 summary(soilchem)
@@ -39,14 +39,44 @@ summary(cell)
 #Merge both datasets
 fullsoil <- merge(soilchem,cell[,c(2:10)],by="Cell_no")
 summary(fullsoil)
+```
 
+
+```{r leach data}
+leach <- read.csv(file="leach.csv")
+
+#Outliers
+leach$Cu_conc[leach$Cu_conc>200] <- NA
+
+#Removal rates
+leach$Curemove <- with(leach,(Cu_in-Cu_conc)/Cu_in) #Calculate % removal 
+leach$Curemove[leach$Curemove<0] <-0 #Set all negative "removals" (i.e., soils added Cu) to zero
+leach$Znremove <- with(leach,(Zn_in-Zn_conc)/Zn_in) #Calculate % removal 
+leach$Znremove[leach$Znremove<0] <-0 #Set all negative "removals" (i.e., soils added Zn) to zero
+leach$Pbremove <- with(leach,(Pb_in-Pb_conc)/Pb_in) #Calculate % removal 
+
+#Cell characteristics (from survey analysis)
+
+cell <- read.csv(file="cell_data_NEW.csv")
+cell$Location_name <- as.character(cell$Location_name)
+
+soilchem <- read.csv(file="soil_metal_NEW.csv")
+cellOM <- aggregate(soilchem[,c('OM','BD')],by=list(soilchem$Cell_no),median,na.rm=T)
+
+newleach <- merge(leach,cell[,2:13],by="Cell_no",all.x=T,all.y=F)
+newleach <- merge(newleach,cellOM[,1:2],by.x="Cell_no",by.y="Group.1",all.x=T,all.y=F)
+
+#Subsets of the different metal treatments
+leachH <- subset(newleach,newleach$Metal=="High")
+leachL <- subset(newleach,newleach$Metal=="Low")
+leachN <- subset(newleach,newleach$Metal=="No")
 ```
 
 
 ###Bioretention cell size
 ```{r cell v. drain size}
-#dev.copy(pdf,'cellsize.pdf')
-par(pin=c(2.5,2.5))
+pdf(file="cellsize.pdf",height=4,width=4)
+par(pin=c(2.5,2.5),mai=c(1,1,0.5,0.5))
 plot(Cell_area~Drain_area,data=cell,log="xy",ylim=c(10,10000),xlim=c(100,10000),xaxt="n",yaxt="n",
      xlab=expression("Drainage basin area (m"^2*")"),ylab=expression("Bioretention cell area (m"^2*")"),
      cex=1.3,pch=c(5,19)[Retrofit])
@@ -69,7 +99,7 @@ legend("topleft",legend=c("New build","Retrofit"),pch=c(5,19),pt.cex=1.3,cex=0.8
 
 points(100,345,pch=19,cex=1.3,col="grey75") #Cell with no drainage area
 
-#dev.off()
+dev.off()
 ```
 
 ###Soil metals through time
@@ -135,8 +165,46 @@ lines(xAge,10^yZnS,col="black")
 dev.off()
 ```
 
-###Cu removal rates
-```{r removal rates}
+###Metal removal 
+```{r removal efficiency}
+pdf(file="metalleach.pdf",height=7,width=4)
+
+par(mfrow=c(2,3),oma=c(1,5,1,1),mar=c(0.25,0.25,4,0.25),xaxt="n")
+plot(Curemove~Retrofit,data=leachH,col=c("white","grey50"),ylim=c(0,1),las=1)
+mtext("Cu",3,0,cex=0.8)
+mtext("Proportion removed",2,3)
+legend("bottomleft",legend=c("New build","Retrofit"),fill=c("white","grey50"),cex=0.8,bty="n")
+plot(Znremove~Retrofit,data=leachH,ylim=c(0,1),yaxt="n",col=c("white","grey50"))
+mtext("Zn",3,0,cex=0.8)
+mtext("High metal stormwater",3,2)
+plot(Pbremove~Retrofit,data=leachH,ylim=c(0,1),yaxt="n",col=c("white","grey50"))
+mtext("Pb",3,0,cex=0.8)
+
+par(mar=c(0,0.25,4.25,0.25))
+plot(Curemove~Retrofit,data=leachL,ylim=c(0,1),las=1,col=c("white","grey50"))
+mtext("Proportion removed",2,3)
+mtext("Cu",3,0,cex=0.8)
+plot(Znremove~Retrofit,data=leachL,ylim=c(0,1),yaxt="n",col=c("white","grey50"))
+mtext("Zn",3,0,cex=0.8)
+mtext("Low metal stormwater",3,2)
+plot(Pbremove~Retrofit,data=leachL,ylim=c(0,1),yaxt="n",col=c("white","grey50"))
+mtext("Pb",3,0,cex=0.8)
+
+dev.off()
+```
+
+###Zn leaching from clean stormwater
+```{r}
+
+par(pin=c(2.5,2.5),mai=c(1,1,0.5,0.5))
+plot(Zn_conc~OM,data=leachN,log="y",yaxt="n",ylim=c(1,1000),xlim=c(4,16),
+     ylab="Zn in leachate (ug/L)",xlab="Soil organic matter (%)")
+logaxis(0,3,2)
+
+```
+
+###Salty comparison leaching
+```{r}
 
 ```
 
