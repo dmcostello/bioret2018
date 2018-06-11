@@ -72,10 +72,15 @@ leachL <- subset(newleach,newleach$Metal=="Low")
 leachN <- subset(newleach,newleach$Metal=="No")
 ```
 
+```{r salty leach data}
+saltleach <- read.csv(file="saltleach.csv")
+saltleach$Cell_no <- factor(saltleach$Cell_no) 
+```
+
 
 ###Bioretention cell size
 ```{r cell v. drain size}
-pdf(file="cellsize.pdf",height=4,width=4)
+pdf(file="./Figures/cellsize.pdf",height=4,width=4)
 par(pin=c(2.5,2.5),mai=c(1,1,0.5,0.5))
 plot(Cell_area~Drain_area,data=cell,log="xy",ylim=c(10,10000),xlim=c(100,10000),xaxt="n",yaxt="n",
      xlab=expression("Drainage basin area (m"^2*")"),ylab=expression("Bioretention cell area (m"^2*")"),
@@ -126,7 +131,7 @@ yZnD <- predict(Znmod,newdata=list(Age=xAge,Depth=rep("10 to 20",length(xAge)),
                                    OM=rep(median(fullsoil$OM,na.rm=T),length(xAge))),re.form=~0)
 
   
-pdf(file="cellmetal.pdf",height=5,width=3)
+pdf(file="./Figures/cellmetal.pdf",height=5,width=3)
 
 par(mfrow=c(3,1),oma=c(3,5,0,1),mar=c(0,0,2,0))
 plot(Cu~offAge,data=fullsoil,log="y",yaxt="n",ylim=c(5,1000),xaxt="n",
@@ -167,7 +172,7 @@ dev.off()
 
 ###Metal removal 
 ```{r removal efficiency}
-pdf(file="metalleach.pdf",height=7,width=4)
+pdf(file="./Figures/metalleach.pdf",height=7,width=4)
 
 par(mfrow=c(2,3),oma=c(1,5,1,1),mar=c(0.25,0.25,4,0.25),xaxt="n")
 plot(Curemove~Retrofit,data=leachH,col=c("white","grey50"),ylim=c(0,1),las=1)
@@ -195,16 +200,48 @@ dev.off()
 
 ###Zn leaching from clean stormwater
 ```{r}
+library(lme4)
+ZnN <- lmer(log10(Zn_conc)~log10(OM)+(1|Cell_no),data=leachN,REML=F)
+newOM <- seq(4,16,by=0.1)
+predZn <- 10^(fixef(ZnN)[1]+fixef(ZnN)[2]*log10(newOM))
 
+pdf(file="./Figures/Zncleanleach.pdf",height=4,width=4)
 par(pin=c(2.5,2.5),mai=c(1,1,0.5,0.5))
 plot(Zn_conc~OM,data=leachN,log="y",yaxt="n",ylim=c(1,1000),xlim=c(4,16),
      ylab="Zn in leachate (ug/L)",xlab="Soil organic matter (%)")
 logaxis(0,3,2)
-
+points(predZn~newOM,type="l",col="red")
+dev.off()
 ```
 
 ###Salty comparison leaching
 ```{r}
+pdf(file="./Figures/salty.pdf",height=5,width=3)
 
+par(mfrow=c(3,1),oma=c(3,7,0,1),mar=c(0,0,2,0))
+
+boxplot(Cu_conc~Salt*Metal,data=saltleach,las=2,log="y",ylim=c(1,1000),yaxt="n",xaxt="n",
+        xlim=c(0.5,7.5),at=c(1,2,3.5,4.5,6,7),
+        col=c("lightblue","white"),border=c("lightblue","black"))
+logaxis(0,3,2)
+mtext("Cu (ug/L)",side=2,line=3,cex=0.6)
+par(mar=c(0.5,0,0.5,0))
+boxplot(Pb_conc~Salt*Metal,data=saltleach,las=2,ylim=c(1,1000),yaxt="n",xaxt="n",log="y",
+        xlim=c(0.5,7.5),at=c(1,2,3.5,4.5,6,7),
+        col=c("lightblue","white"),border=c("lightblue","black"))
+logaxis(0,3,2)
+mtext("Pb (ug/L)",side=2,line=3,cex=0.6)
+mtext("Metal concentration in leachate",side=2,line=4.5,cex=0.8)
+legend("topright",c("High salt","Low salt"),fill=c("lightblue","white"))
+par(mar=c(2,0,0,0))
+boxplot(Zn_conc~Salt*Metal,data=saltleach,las=2,ylim=c(1,1000),yaxt="n",xaxt="n",log="y",
+        xlim=c(0.5,7.5),at=c(1,2,3.5,4.5,6,7),
+        col=c("lightblue","white"),border=c("lightblue","black"))
+logaxis(0,3,2)
+mtext("Zn (ug/L)",side=2,line=3,cex=0.6)
+mtext(c("High","Low","Clean"),at=c(1.5,4,6.5),side=1,line=0.5,cex=0.6)
+mtext("Stormwater metal",side=1,line=2,cex=0.8)
+
+dev.off()
 ```
 
