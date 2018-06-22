@@ -33,11 +33,11 @@ leach <- read.csv(file="leach.csv")
 leach$Cu_conc[leach$Cu_conc>200] <- NA
 
 #Removal rates
-leach$Curemove <- with(leach,(Cu_in-Cu_conc)/Cu_in) #Calculate % removal 
+leach$Curemove <- with(leach,(Cu_in_meas-Cu_conc)/Cu_in_meas) #Calculate % removal 
 leach$Curemove[leach$Curemove<0] <-0 #Set all negative "removals" (i.e., soils added Cu) to zero
-leach$Znremove <- with(leach,(Zn_in-Zn_conc)/Zn_in) #Calculate % removal 
+leach$Znremove <- with(leach,(Zn_in_meas-Zn_conc)/Zn_in_meas) #Calculate % removal 
 leach$Znremove[leach$Znremove<0] <-0 #Set all negative "removals" (i.e., soils added Zn) to zero
-leach$Pbremove <- with(leach,(Pb_in-Pb_conc)/Pb_in) #Calculate % removal 
+leach$Pbremove <- with(leach,(Pb_in_meas-Pb_conc)/Pb_in_meas) #Calculate % removal 
 
 #Cell characteristics (from survey analysis)
 soilchem <- read.csv(file="soil_metal_NEW.csv")
@@ -62,9 +62,11 @@ cell$logDrain[which(is.infinite(cell$logDrain))] <- mean(cell$logDrain[is.finite
 cell$logCell <- log10(cell$Cell_area)
 cell$logDtoC <- cell$logDrain/cell$logCell
 
-chemmean <- aggregate(soilchem[,c('OM','BD','d50','logOM','logBD','logd50',
+#chemmean <- aggregate(soilchem[,c('OM','BD','d50','logOM','logBD','logd50','Cu','Zn','Pb','logCu','logZn','logPb')],by=list(soilchem$Cell_no),median,na.rm=T)
+#Old code that used entire soil depth, now with just surface soil chemistry
+chemmean <- aggregate(soilchem[soilchem$Depth=="0 to 10",c('OM','BD','d50','logOM','logBD','logd50',
                                   'Cu','Zn','Pb','logCu','logZn','logPb')],
-                      by=list(soilchem$Cell_no),median,na.rm=T)
+                      by=list(soilchem[soilchem$Dept=="0 to 10",]$Cell_no),median,na.rm=T)
 cellmeans <- merge(cell,chemmean,by.x="Cell_no",by.y="Group.1")
 
 newleach <- merge(leach,cellmeans[,c(1,8:10,13:16,20:28)],by="Cell_no",all.x=T,all.y=F)
@@ -131,23 +133,51 @@ for(i in 1:length(candvar)){
   CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuHresult[order(CuHresult$Pval),] #Don't add anything else
+CuHresult[order(CuHresult$Pval),] #Add log OM
+
+#Second step model
+CuH1 <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=leachH,REML=F)
+CuH2 <- lmer(logit(Curemove)~Retrofit*logOM+(1|Cell_no),data=leachH,REML=F)
+anova(CuH1,CuH2)
+#Interaction is not signficant
+
+#Step 3, test for third fixed variable
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logBD','logd50',
+             'Cu','logCu','Location')
+loc <- which(names(leachH) %in% candvar)
+names(leachH)[loc]
+
+CuHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit','logOM')],leachH[,loc[i]])
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(logit(Curemove)~Retrofit+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Retrofit+Cudata[[5]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
+
+CuHresult[order(CuHresult$Pval),] #Nothing else to add
 
 #FINAL MODEL
-CuH <- lmer(logit(Curemove)~Retrofit+(1|Cell_no),data=leachH,REML=F)
+CuH <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=leachH,REML=F)
 summary(CuH)
 plot(CuH)
 
-inv.logit(predict(CuH,newdata=list(Retrofit="yes"),re.form=~0))
-inv.logit(predict(CuH,newdata=list(Retrofit="no"),re.form=~0))
+newOM <- quantile(leachH$logOM,na.rm=T,0.9)
+
+inv.logit(predict(CuH,newdata=list(Retrofit="yes",logOM=newOM),re.form=~0))
+inv.logit(predict(CuH,newdata=list(Retrofit="no",logOM=newOM),re.form=~0))
 ```
 
-A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.0008). Retrofit cells only removed 79% of added Cu but new builds removed 90%. 
+A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.002). Retrofit cells only removed 77% of added Cu but new builds removed 89%. Soils with greater OM have less metal removal. In new builds, low OM (10%) removed 92% of Cu but high OM (90%) removed 85%. 
 
 ```{r Low metal stormwater}
 plot(leachL$Curemove,ylim=c(0,1)) #Four values of zero
 sort(leachL$Curemove)
-leachL$Curemovenew <- leachL$Curemove+0.15 #Add the minimum non-zero value
+leachL$Curemovenew <- leachL$Curemove+0.05 #Add the minimum non-zero value
 
 plot(Curemovenew~Cell_no,data=leachL)
 plot(logit(Curemovenew)~Retrofit,data=leachL)
@@ -208,25 +238,25 @@ inv.logit(predict(CuL,newdata=list(Retrofit="no"),re.form=~0))-0.15
 plot(Curemove~Retrofit,data=leachL)
 ```
 
-A intermediate proportion of Cu was removed from low metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.017). Retrofit cells only removed 61% of added Cu but new builds removed 74%. Same pattern as what was observed for high metal stormwater.
+A intermediate proportion of Cu was removed from low metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.018). Retrofit cells only removed 41% of added Cu but new builds removed 59%. Same pattern as what was observed for high metal stormwater.
 
 ###Zn leaching
 ```{r High metal stormwater}
-plot(leachH$Znremove,ylim=c(0,1)) #No values of zero removal
-sort(leachH$Znremove) #Two zeros removals
+plot(leachH$Znremove,ylim=c(0,1))
+sort(leachH$Znremove) #17 values of zero removal
 
-#leachH$Znremovenew <- leachH$Znremove+0.07
+#leachH$Znremovenew <- leachH$Znremove+0.08
 #Cannot just add the lowest value b/c cause higher values to be >1
 #Do not want to delete rows because valuable information
 #Change 0 to lowest values
-leachH$Znremove[leachH$Znremove==0] = 0.07
+leachH$Znremove[leachH$Znremove==0] = 0.08
 
 plot(Znremove~Cell_no,data=leachH)
 
 ZnH0r <- lmer(logit(Znremove)~1+(1|Cell_no),data=leachH,REML=F)
 ZnH0 <- lm(logit(Znremove)~1,data=leachH)
 anova(ZnH0r,ZnH0)
-  #Random effect is significant (p=0.001)
+  #Random effect is significant (p<0.001)
 
 #Step 1, test for first fixed variable
 candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','logBD',
@@ -272,7 +302,7 @@ ZnHresult[order(ZnHresult$Pval),] #Add location
 ZnH1 <- lmer(logit(Znremove)~Retrofit+Location+(1|Cell_no),data=leachH,REML=F)
 ZnH2 <- lmer(logit(Znremove)~Retrofit*Location+(1|Cell_no),data=leachH,REML=F)
 anova(ZnH1,ZnH2)
-#Interaction is not signficant
+#Interaction is not signficant (p=0.10)
 
 #Step 3, test for third fixed variable
 candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50',
@@ -307,16 +337,16 @@ inv.logit(predict(ZnH,newdata=list(Retrofit="no",Location="Drain"),re.form=~0))
 boxplot(Znremove~Location*Retrofit,data=leachH)
 ```
 
-Zn removal was very efficient with a lot of soils removing almost all of the 960 µg/L of added Zn. The removal rates were modified by construction type (retrofit vs. new build) and location of sampling. Retrofits yielded less efficient metal removal than new builds and soils near inflow points removed more metal than drains. Log odds decreased -1.8 when retrofitted and log odds decreased -0.92 when soils were near the drain.
+Zn removal was very efficient with a lot of soils removing almost all of the 441 µg/L of added Zn. The removal rates were modified by construction type (retrofit vs. new build) and location of sampling. Retrofits yielded less efficient metal removal than new builds and soils near inflow points removed more metal than drains. Log odds decreased -2.2 when retrofitted and log odds decreased -1.18 when soils were near the drain.
 
 ```{r Low metal stormwater}
-plot(leachL$Znremove,ylim=c(0,1)) #No values of zero removal
-sort(leachL$Znremove) #Two zeros removals
+plot(leachL$Znremove,ylim=c(0,1))
+sort(leachL$Znremove) #Nine zeros removals
 
 #Cannot just add the lowest value b/c cause higher values to be >1
 #Do not want to delete rows because valuable information
 #Change 0 to 1/2lowest values
-leachL$Znremove[leachL$Znremove==0] = 0.1
+leachL$Znremove[leachL$Znremove==0] = 0.13
 
 plot(Znremove~Cell_no,data=leachL)
 
@@ -358,7 +388,7 @@ plot(Pbremove~Cell_no,data=leachH)
 PbH0r <- lmer(logit(Pbremove)~1+(1|Cell_no),data=leachH,REML=F)
 PbH0 <- lm(logit(Pbremove)~1,data=leachH)
 anova(PbH0r,PbH0)
-  #Random effect is non-significant (p=0.17)
+  #Random effect is non-significant (p=0.19)
 
 #Step 1, test for first fixed variable
 candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','logBD',
@@ -398,7 +428,7 @@ for(i in 1:length(candvar)){
   PbHresult$Pval[i] <- anova(MPb2,MPb1)$P[2]
 }
 
-PbHresult[order(PbHresult$Pval),] #Nothing else to add, logd50 is closest (p-0.066)
+PbHresult[order(PbHresult$Pval),] #Nothing else to add, logd50 is closest (p=0.14)
 
 #FINAL MODEL 
 PbH <- lmer(logit(Pbremove)~Retrofit+(1|Cell_no),data=leachH,REML=F)
@@ -408,14 +438,11 @@ plot(PbH)
 boxplot(Pbremove~Retrofit,data=leachH)
 boxplot(logit(Pbremove)~Retrofit,data=leachH)
 
-#inv.logit(predict(PbH,newdata=list(Retrofit="yes"),re.form=~0))
-#inv.logit(predict(PbH,newdata=list(Retrofit="no"),re.form=~0))
-#Code worked on mac but not on PC DOUBLE CHECK
-inv.logit(2.2512)
-inv.logit(2.2512-0.8964)
+inv.logit(predict(PbH,newdata=list(Retrofit="yes"),re.form=~0))
+inv.logit(predict(PbH,newdata=list(Retrofit="no"),re.form=~0))
 ```
 
-Pb removal was very efficient, with >75% of cores removing >97% of the added Pb. Retrofit cells were slightly less efficient than the new builds. Model says that new builds remove 90% of Pb but retrofits remove only 79%. Doesn't quite match the plots?
+Pb removal was very efficient, with >75% of cores removing >97% of the added Pb. Retrofit cells were slightly less efficient than the new builds. Model says that new builds remove 98% of Pb but retrofits remove only 96%. 
 
 ```{r Low metal stormwater}
 plot(leachL$Pbremove,ylim=c(0,1)) #No values of zero removal
@@ -423,7 +450,7 @@ plot(leachL$Pbremove,ylim=c(0,1)) #No values of zero removal
 #Only two values had non-complete removal. Not worth the model. 
 ```
 
-Removal of Pb from low metal storwater (100 ug/L) was very complete. All but two samples removed Pb down to the DL (10 ug/L). No need to complete statistics.
+Removal of Pb from low metal storwater (78 ug/L) was very complete. All but two samples removed Pb down to the DL (10 ug/L). No need to complete statistics.
 
 
 ###Clean stormwater additions
@@ -471,38 +498,18 @@ for(i in 1:length(candvar)){
   ZnNresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
 }
 
-ZnNresult[order(ZnNresult$Pval),] #Add OM (p=0.024)
+ZnNresult[order(ZnNresult$Pval),] #Nothing significant, logOM closest (p=0.25)
 
-#Step 2, check for secondary fixed variable
-candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logBD',
-             'logd50','Zn','logZn','Location')
-loc <- which(names(leachN) %in% candvar)
-names(leachN)[loc]
-
-ZnNresult <- data.frame("Variable"=names(leachN)[loc],"Pval"=NA)
-
-for(i in 1:length(candvar)){
-  Zndata <- cbind(leachN[,c('Cell_no','Zn_conc','logOM')],leachN[,loc[i]])
-  Zndata <- Zndata[complete.cases(Zndata),]
-  
-  MZn1 <- lmer(log10(Zn_conc)~logOM+(1|Cell_no),data=Zndata,REML=F)
-  MZn2 <- lmer(log10(Zn_conc)~logOM+Zndata[[4]]+(1|Cell_no),data=Zndata,REML=F)
-  
-  ZnNresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
-}
-
-ZnNresult[order(ZnNresult$Pval),] #Nothing else to add
 
 ##FINAL MODEL
-ZnN <- lmer(log10(Zn_conc)~logOM+(1|Cell_no),data=leachN,REML=F)
+ZnN <- lmer(log10(Zn_conc)~1+(1|Cell_no),data=leachN,REML=F)
 summary(ZnN)
 plot(ZnN)
 
 plot(Zn_conc~logOM,data=leachN,log="y")
-abline(fixef(ZnN),col="red")
 ```
 
-A fair number of soils leached Zn when clean stormwater was added (24% of cores). Zn concentrations in leachate was lower from higher OM soils. log10(Zn) = 1.58 -1.22*log10(OM).
+A fair number of soils leached Zn when clean stormwater was added (24% of cores). None of our soil or site characteristics were able to predict the cells that leached Zn.
 
 
 ```{r Pb leach}
