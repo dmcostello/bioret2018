@@ -45,6 +45,7 @@ cell$logDtoC <- cell$logDrain/cell$logCell
 fullsoil <- merge(soilchem,cell[,c(2:10,13:15)],by="Cell_no")
 summary(fullsoil)
 
+with(soilchem,tapply(OM,list(Depth,Location),length))
 ```
 
 ##Secondary analyses

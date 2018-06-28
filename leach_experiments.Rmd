@@ -76,6 +76,7 @@ leachH <- subset(newleach,newleach$Metal=="High")
 leachL <- subset(newleach,newleach$Metal=="Low")
 leachN <- subset(newleach,newleach$Metal=="No")
 
+with(leachN, tapply(Curemove,list(Cell_no,Location),length))
 
 #Salty water
 saltleach <- read.csv(file="saltleach.csv")
@@ -166,13 +167,13 @@ CuH <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=leachH,REML=F)
 summary(CuH)
 plot(CuH)
 
-newOM <- quantile(leachH$logOM,na.rm=T,0.9)
+newOM <- quantile(leachH$logOM,na.rm=T,0.5)
 
 inv.logit(predict(CuH,newdata=list(Retrofit="yes",logOM=newOM),re.form=~0))
 inv.logit(predict(CuH,newdata=list(Retrofit="no",logOM=newOM),re.form=~0))
 ```
 
-A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.002). Retrofit cells only removed 77% of added Cu but new builds removed 89%. Soils with greater OM have less metal removal. In new builds, low OM (10%) removed 92% of Cu but high OM (90%) removed 85%. 
+A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.002). Retrofit cells only removed 77% of added Cu but new builds removed 90%. Soils with greater OM have less metal removal. In new builds, low OM (10%) removed 92% of Cu but high OM (90%) removed 84%. 
 
 ```{r Low metal stormwater}
 plot(leachL$Curemove,ylim=c(0,1)) #Four values of zero
@@ -243,7 +244,7 @@ A intermediate proportion of Cu was removed from low metal stormwater, but the r
 ###Zn leaching
 ```{r High metal stormwater}
 plot(leachH$Znremove,ylim=c(0,1))
-sort(leachH$Znremove) #17 values of zero removal
+sort(leachH$Znremove) #16 values of zero removal
 
 #leachH$Znremovenew <- leachH$Znremove+0.08
 #Cannot just add the lowest value b/c cause higher values to be >1
@@ -341,7 +342,7 @@ Zn removal was very efficient with a lot of soils removing almost all of the 441
 
 ```{r Low metal stormwater}
 plot(leachL$Znremove,ylim=c(0,1))
-sort(leachL$Znremove) #Nine zeros removals
+sort(leachL$Znremove) #10 zeros removals
 
 #Cannot just add the lowest value b/c cause higher values to be >1
 #Do not want to delete rows because valuable information
