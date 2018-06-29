@@ -96,9 +96,55 @@ t.test(logOM~Retrofit,data=cellmeans)
 t.test(Kfs~Retrofit,data=cellmeans)
 t.test(logd50~Retrofit,data=cellmeans)
 t.test(LF_sus~Retrofit,data=cellmeans)
+t.test(logDrain~Retrofit,data=cellmeans)
+t.test(logCell~Retrofit,data=cellmeans)
+t.test(logDtoC~Retrofit,data=cellmeans)
 ```
 
-Bulk density is lower in new builds (p=0.004) but none of the other soil properties differ.
+Bulk density is lower in new builds (p=0.004) and retrofits have slightly lower log drainage area (p=0.04). All other soil parameters do not differ.
+
+###Inflow vs. drain and depth tests
+```{r}
+OMmod <- lme(logOM~Depth*Location,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+OMmod2 <- lm(logOM~Depth*Location,data=fullsoil)
+anova(OMmod,OMmod2)
+#OM was similar among all cells (random effect p=0.22)
+summary(OMmod)
+plot(OMmod)
+#OM was lower in deeper soil (p=0.002; 10^-0.245 = 0.56) so deep soil has half the OM.
+OMmod3 <- lme(logOM~Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+OMmod4 <- lme(logOM~Age*Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(OMmod3,OMmod4)
+#Age doesn't improve model fit (p = 0.73)
+
+BDmod <- lme(logBD~Depth*Location,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+BDmod2 <- lm(logBD~Depth*Location,data=fullsoil)
+anova(BDmod,BDmod2)
+#BD was similar among all cells (random effect p=0.78)
+summary(BDmod)
+plot(BDmod)
+#BD was greater in deeper soil (p=0.008; 10^-0.29 = 0.51) so deep soil was twice as dense.
+BDmod3 <- lme(logBD~Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+BDmod4 <- lme(logBD~Age*Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(BDmod3,BDmod4)
+#Age doesn't improve model fit (p = 0.26)
+
+
+d50mod <- lme(logd50~Depth*Location,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+d50mod2 <- lm(logd50~Depth*Location,data=fullsoil)
+anova(d50mod,d50mod2)
+#d50 differed among all cells (random effect p=0.01)
+summary(d50mod)
+plot(d50mod)
+#d50 did not differ among depth or location
+d50mod3 <- lme(logd50~1,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+d50mod4 <- lme(logd50~Age,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(d50mod3,d50mod4)
+#Age doesn't improve model fit (p = 0.41)
+```
+
+Median partical size differed among the cells, but broader soil characteristics like bulk density and organic matter content were fairly similar among cells. d50, OM, and BD did not differ between the inflow and drain, but the surface soils had higher OM and lower BD (no difference in d50). Age also did not influence d50, OM, or BD.
+
 
 ##Zinc analyses
 ###Soil Zn content
