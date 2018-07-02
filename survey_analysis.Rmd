@@ -168,7 +168,7 @@ anova(Znmodsim,Znmod_noME)
   #Yes, retain random effect
 ```
 
-Zn concentrations increase with age (p=0.0006). log(Zn) increases by 0.12*age (13% increase each year). Depth is important for Zn concentrations (p=0.0023) with shallow soils having ~22% more Zn (e^0.20). Location does not matter (p=0.19).
+Zn concentrations increase with age (p=0.0006). log(Zn) increases by 0.128*age (14% increase each year). Depth is important for Zn concentrations (p=0.027) with shallow soils having ~17% more Zn (e^0.15). Location does not matter (p=0.19).
 
 
 ##Other variables influencing Zn
@@ -235,9 +235,13 @@ plot(MZn2.1)
 
 MZn2.1nlme <- lme(log(Zn)~Age+Depth+log(OM),random=~1|Cell_no,data=fullsoil,na.action=na.omit)
 anova(MZn2.1nlme)
+
+(newOM <- quantile(fullsoil$logOM,0.1,na.rm=T))
+exp(predict(MZn2.1,newdata=list(Age=seq(0,7),Depth=rep("0 to 10",8),logOM=rep(newOM,8)),re.form=~0))
+
 ```
 
-Zn in biorention cells is increasing with age (p<0.001), decreased with depth (p<0.001) and is greater in soils with more organic matter (`log(OM)`, p<0.001). Across the range of biorention cells that we sampled (5-80% OM) we would see approximately a doubling in Zn in the high OM soils when compared to the low OM soils.
+Zn in biorention cells is increasing with age (p<0.001), decreased with depth (p<0.001) and is greater in soils with more organic matter (`log(OM)`, p<0.001). Across the range of biorention cells that we sampled we would see approximately 34% more Zn in the high OM soils when compared to the low OM soils.
 
 
 ##Copper analyses
@@ -329,6 +333,10 @@ plot(MCu2)
 
 MCu2nlme <- lme(log(Cu)~Age*Depth+logOM,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
 anova(MCu2nlme)
+
+(newOM <- quantile(fullsoil$logOM,0.5,na.rm=T))
+exp(predict(MCu2,newdata=list(Age=seq(0,7),Depth=rep("0 to 10",8),logOM=rep(newOM,8)),re.form=~0))
+
 ```
 
 Surface soils in biorentention cells increase in Cu concentrations as they age, but deeper soils have more stable Cu concentrations (p=0.009). Cu is greater in high OM soils and across the range of cells we measured (5-80% OM) there is a 50% greater concentration of Cu on high OM soils.
@@ -428,8 +436,9 @@ anova(MPb2nlme)
 
 #Predictions to try and interpret the model
 newage <- seq(0,7)
-highOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("0 to 10",8),logOM=rep(log10(80),8)),re.form=~0)
-lowOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("0 to 10",8),logOM=rep(log10(5),8)),re.form=~0)
+(newOM <- quantile(fullsoil$logOM,0.1,na.rm=T))
+highOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("0 to 10",8),logOM=rep(newOM,8)),re.form=~0)
+lowOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("10 to 20",8),logOM=rep(newOM,8)),re.form=~0)
 
 plot(Pb~Age,data=fullsoil)
 lines(newage,exp(highOM))
