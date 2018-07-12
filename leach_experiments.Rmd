@@ -171,9 +171,13 @@ newOM <- quantile(leachH$logOM,na.rm=T,0.5)
 
 inv.logit(predict(CuH,newdata=list(Retrofit="yes",logOM=newOM),re.form=~0))
 inv.logit(predict(CuH,newdata=list(Retrofit="no",logOM=newOM),re.form=~0))
+
+#Find how many samples were at DL in retrofit cells
+with(leachH,tapply(Curemove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}))
+with(leachH,tapply(Curemove,Retrofit,function(X){sum(!is.na(X))}))
 ```
 
-A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.002). Retrofit cells only removed 77% of added Cu but new builds removed 90%. Soils with greater OM have less metal removal. In new builds, low OM (10%) removed 92% of Cu but high OM (90%) removed 84%. 
+A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p<0.001). Retrofit cells only removed 77% of added Cu but new builds removed 90%. New builds had 22 samples <DL (out of 61) but retrofits had only 1 (out of 39). Soils with greater OM have less metal removal. In new builds, low OM (10%) removed 92% of Cu but high OM (90%) removed 84%. 
 
 ```{r Low metal stormwater}
 plot(leachL$Curemove,ylim=c(0,1)) #Four values of zero
@@ -237,6 +241,10 @@ inv.logit(predict(CuL,newdata=list(Retrofit="yes"),re.form=~0))-0.15
 inv.logit(predict(CuL,newdata=list(Retrofit="no"),re.form=~0))-0.15
 
 plot(Curemove~Retrofit,data=leachL)
+
+#Find how many samples were at DL in retrofit cells
+with(leachL,tapply(Curemove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}))
+with(leachL,tapply(Curemove,Retrofit,function(X){sum(!is.na(X))}))
 ```
 
 A intermediate proportion of Cu was removed from low metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.018). Retrofit cells only removed 41% of added Cu but new builds removed 59%. Same pattern as what was observed for high metal stormwater.
@@ -297,48 +305,25 @@ for(i in 1:length(candvar)){
   ZnHresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
 }
 
-ZnHresult[order(ZnHresult$Pval),] #Add location
-
-#Second step model
-ZnH1 <- lmer(logit(Znremove)~Retrofit+Location+(1|Cell_no),data=leachH,REML=F)
-ZnH2 <- lmer(logit(Znremove)~Retrofit*Location+(1|Cell_no),data=leachH,REML=F)
-anova(ZnH1,ZnH2)
-#Interaction is not signficant (p=0.10)
-
-#Step 3, test for third fixed variable
-candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50',
-             'Zn','logZn')
-loc <- which(names(leachH) %in% candvar)
-names(leachH)[loc]
-
-ZnHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
-
-for(i in 1:length(candvar)){
-  Zndata <- cbind(leachH[,c('Cell_no','Znremove','Retrofit','Location')],leachH[,loc[i]])
-  Zndata <- Zndata[complete.cases(Zndata),]
-  
-  MZn1 <- lmer(logit(Znremove)~Retrofit+(1|Cell_no),data=Zndata,REML=F)
-  MZn2 <- lmer(logit(Znremove)~Retrofit+Zndata[[5]]+(1|Cell_no),data=Zndata,REML=F)
-  
-  ZnHresult$Pval[i] <- anova(MZn2,MZn1)$P[2]
-}
-
 ZnHresult[order(ZnHresult$Pval),] #No more variables to add
 
+
 #FINAL MODEL 
-ZnH <- lmer(logit(Znremove)~Retrofit+Location+(1|Cell_no),data=leachH,REML=F)
+ZnH <- lmer(logit(Znremove)~Retrofit+(1|Cell_no),data=leachH,REML=F)
 summary(ZnH)
 plot(ZnH)
 
-inv.logit(predict(ZnH,newdata=list(Retrofit="yes",Location="Inflow"),re.form=~0))
-inv.logit(predict(ZnH,newdata=list(Retrofit="yes",Location="Drain"),re.form=~0))
-inv.logit(predict(ZnH,newdata=list(Retrofit="no",Location="Inflow"),re.form=~0))
-inv.logit(predict(ZnH,newdata=list(Retrofit="no",Location="Drain"),re.form=~0))
+inv.logit(predict(ZnH,newdata=list(Retrofit="yes"),re.form=~0))
+inv.logit(predict(ZnH,newdata=list(Retrofit="no"),re.form=~0))
 
-boxplot(Znremove~Location*Retrofit,data=leachH)
+boxplot(Znremove~Retrofit,data=leachH)
+
+#Find how many samples were at DL in retrofit cells
+with(leachH,tapply(Znremove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}))
+with(leachH,tapply(Znremove,Retrofit,function(X){sum(!is.na(X))}))
 ```
 
-Zn removal was very efficient with a lot of soils removing almost all of the 441 µg/L of added Zn. The removal rates were modified by construction type (retrofit vs. new build) and location of sampling. Retrofits yielded less efficient metal removal than new builds and soils near inflow points removed more metal than drains. Log odds decreased -2.2 when retrofitted and log odds decreased -1.18 when soils were near the drain.
+Zn removal was very efficient with a lot of soils removing almost all of the 441 µg/L of added Zn. The removal rates were modified by construction type (retrofit vs. new build). Retrofits yielded less efficient metal removal (59%) than new builds (94%). Zn was below DL for 24 of 62 new build samples but only 1 of 39 retrofit samples.
 
 ```{r Low metal stormwater}
 plot(leachL$Znremove,ylim=c(0,1))
@@ -441,6 +426,10 @@ boxplot(logit(Pbremove)~Retrofit,data=leachH)
 
 inv.logit(predict(PbH,newdata=list(Retrofit="yes"),re.form=~0))
 inv.logit(predict(PbH,newdata=list(Retrofit="no"),re.form=~0))
+
+#Find how many samples were at DL in retrofit cells
+with(leachH,tapply(Pbremove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}))
+with(leachH,tapply(Pbremove,Retrofit,function(X){sum(!is.na(X))}))
 ```
 
 Pb removal was very efficient, with >75% of cores removing >97% of the added Pb. Retrofit cells were slightly less efficient than the new builds. Model says that new builds remove 98% of Pb but retrofits remove only 96%. 

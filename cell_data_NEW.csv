@@ -1,27 +1,1 @@
-Location_name,Cell_no,Age,Install_yr,Cell_area,Drain_area,DtoC,Kfs,LF_sus,HF_sus,Adj_LF,Adj_HF,Retrofit
-Windmere Community Learning Center,1,6,2010,454.29,2294.02,5.05,,,,,,no
-Akron General,6,4,2012,336.62,1442.97,4.29,,,,,,yes
-City Hall,8,4,2012,37,146,3.95,,,,,,yes
-Great Lakes Mall,9,1,2015,60.5,107,1.77,,,,,,yes
-Jefferson Library,11,3,2013,106,262,2.47,,,,,,no
-Azure (Collinswood),12,3,2013,53,362,6.83,,,,,,no
-Outdoor Theatre,15,3,2013,25.4,227,8.94,,,,,,no
-Cleveland Clinic Crile Mall East,21,7,2009,483.29,2357.71,4.88,0.003,47,46.5,196.6,193.5,no
-Global Cardiovascular Innovation Center,22,7,2009,181,1368,7.56,0.023,36.8,36,51.2,50.03,no
-Cleveland Clinic Crile Mall East,23,7,2009,300.82,1928.82,6.41,0.026,,,,,no
-Keystone Shelter,24,3,2013,387.43,1531,3.95,0.059,73.8,73.1,41.8,40,no
-Merwin's Wharf,25,1,2015,668,1933.5,2.89,0.094,76.8,76.2,107.2,106.1,no
-Garfield Heights Library,26,2,2014,438.46,1650.34,3.76,0.004,105.3,103.93,110.7,109.37,no
-Mayfield Library,27,4,2012,557,1262,2.27,0.121,66.8,66.4,18,17.4,no
-Mayfield Library,28,4,2012,859,470,0.55,0.009,64,62.8,33,32.3,no
-Mayfield Library,29,4,2012,2774,1831,0.66,0.115,68.5,67,,,no
-Lakewood Municipal Lot,30,3,2013,28.5,572,20.07,0.002,71,70.5,94.9,93.5,yes
-Lakewood Municipal Lot,31,1,2015,34,301,8.85,0.008,,,100.6,99.1,yes
-Lakewood Municipal Lot,32,1,2015,47,365,7.77,0.071,102.6,102.23,82.5,81.07,yes
-North Chagrin Nature Center,33,2,2014,1050,1388,1.32,0.122,78,76.83,33.9,33.7,yes
-Lakewood Park,34,1,2015,197,549.81,2.79,0.036,83.9,82.7,88.6,85.5,yes
-Lakewood Park,35,1,2015,345,0,0,0.033,107.2,106.2,87.9,86.1,yes
-Watershed Stewardship Center,5/36,2,2014,293.17,3225,11,0.09,126.4,125.7,134.7,132.8,no
-Seneca Golf Course,37,0,2016,250,830.54,3.32,0.136,,,95.2,95,yes
-Kent State LCI,38,3,2013,185.89,1382,7.43,0.021,55.57,54.6,83.9,82.9,no
-Veteran's Way Park,4/39,5,2011,197.88,665.76,3.36,0.012,56.2,56,57.3,56.5,no
+Location_name,Cell_no,Age,Install_yr,Cell_area,Drain_area,DtoC,Kfs,LF_sus,HF_sus,Adj_LF,Adj_HF,RetrofitWindmere Community Learning Center,1,6,2010,454.29,2294.02,5.05,,,,,,noAkron General,6,4,2012,336.62,1442.97,4.29,,,,,,yesCity Hall,8,4,2012,37,146,3.95,,,,,,yesGreat Lakes Mall,9,1,2015,60.5,107,1.77,,,,,,yesJefferson Library,11,3,2013,106,262,2.47,,,,,,noAzure (Collinswood),12,3,2013,53,362,6.83,,,,,,noOutdoor Theatre,15,3,2013,25.4,227,8.94,,,,,,noCleveland Clinic Crile Mall East,21,7,2009,483.29,2357.71,4.88,0.003,47,46.5,196.6,193.5,noGlobal Cardiovascular Innovation Center,22,7,2009,181,1368,7.56,0.023,36.8,36,51.2,50.03,noCleveland Clinic Crile Mall East,23,7,2009,300.82,1928.82,6.41,0.026,,,,,noKeystone Shelter,24,3,2013,387.43,1531,3.95,0.059,73.8,73.1,41.8,40,noMerwin's Wharf,25,1,2015,668,1933.5,2.89,0.094,76.8,76.2,107.2,106.1,noGarfield Heights Library,26,2,2014,438.46,1650.34,3.76,0.004,105.3,103.93,110.7,109.37,noMayfield Library,27,4,2012,557,1262,2.27,0.121,66.8,66.4,18,17.4,noMayfield Library,28,4,2012,859,470,0.55,0.009,64,62.8,33,32.3,noMayfield Library,29,4,2012,2774,1831,0.66,0.115,68.5,67,,,noLakewood Municipal Lot,30,3,2013,28.5,572,20.07,0.002,71,70.5,94.9,93.5,yesLakewood Municipal Lot,31,1,2015,34,301,8.85,0.008,,,100.6,99.1,yesLakewood Municipal Lot,32,1,2015,47,365,7.77,0.071,102.6,102.23,82.5,81.07,yesNorth Chagrin Nature Center,33,2,2014,1050,1388,1.32,0.122,78,76.83,33.9,33.7,yesLakewood Park,34,1,2015,197,549.81,2.79,0.036,83.9,82.7,88.6,85.5,yesLakewood Park,35,1,2015,345,0,0,0.033,107.2,106.2,87.9,86.1,yesWatershed Stewardship Center,36/5,2,2014,293.17,3225,11,0.09,126.4,125.7,134.7,132.8,noSeneca Golf Course,37,0,2016,250,830.54,3.32,0.136,,,95.2,95,yesKent State LCI,38,3,2013,185.89,1382,7.43,0.021,55.57,54.6,83.9,82.9,noVeteran's Way Park,39/4,5,2011,197.88,665.76,3.36,0.012,56.2,56,57.3,56.5,no
