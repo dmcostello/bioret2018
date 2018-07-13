@@ -360,9 +360,15 @@ for(i in 1:length(candvar)){
 }
 
 ZnLresult[order(ZnLresult$Pval),] #Nothing significant (log(Zn) is closest @ p=0.11)
+sum(leachL$Znremove==max(leachL$Znremove,na.rm=T),na.rm=T)
+sum(!is.na(leachL$Znremove))
+
+#Find how many samples were at DL in retrofit cells
+with(leachL,tapply(Znremove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}))
+with(leachL,tapply(Znremove,Retrofit,function(X){sum(!is.na(X))}))
 ```
 
-Removal of Zn from lightly contaminated stormwater differed significantly among the bioretention cells, but it was not correlated to any of our measures of bioretention cells.
+Removal of Zn from lightly contaminated stormwater differed significantly among the bioretention cells, but it was not correlated to any of our measures of bioretention cells. 59 of 100 samples were <DL.
 
 
 ###Pb leaching
@@ -495,6 +501,7 @@ ZnNresult[order(ZnNresult$Pval),] #Nothing significant, logOM closest (p=0.25)
 ZnN <- lmer(log10(Zn_conc)~1+(1|Cell_no),data=leachN,REML=F)
 summary(ZnN)
 plot(ZnN)
+ranef(ZnN)
 
 plot(Zn_conc~logOM,data=leachN,log="y")
 ```
@@ -538,17 +545,26 @@ CuS5 <- update(CuS4,~.+Cell_no:Metal)
 add1(CuS5,scope=CuSfull,test="Chisq")
 #Nothing more needs to be added
 
+CuS6 <- update(CuS5,~.+Salt) #See what happens when salt is included
+add1(CuS6,scope=CuSfull,test="Chisq")
+
+CuS7 <- update(CuS6,~.+Location:Salt)
+add1(CuS7,scope=CuSfull,test="Chisq")
+
 drop1(CuS5,test="Chisq")
 #Use drop1 to double check that nothing added is now insignificant
-#Here everything looks good and should stay. CuS5 is the final model
+#Here everything looks good and should stay. CuS7 is the final model
 
-summary(CuS5)
+summary(CuS7)
 ##Plot to explain significant differences
 
 boxplot(log(Cu_conc)~Metal*Cell_no,data=saltleach,las=2)
 #Cell 21 leached in all treatments, cell 22 leached just in high, cell 23 leached rarely
 boxplot(log(Cu_conc)~Location*Cell_no,data=saltleach,las=2)
 #Cell 21 leached more in inflow, cell 22 leached more from drain, cell 23 rarely leached 
+boxplot(log(Cu_conc)~Location*Salt,data=saltleach,las=2)
+#Cell 21 leached more in inflow, cell 22 leached more from drain, cell 23 rarely leached 
+
 
 saltleach$Cu_pred <- fitted(CuS5) #Predicted values from the final model
 mu_Cu <- with(saltleach,tapply(Cu_pred,list(Location,Cell_no,Metal),mean))
