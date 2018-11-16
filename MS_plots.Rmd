@@ -31,9 +31,13 @@ summary(soilchem)
 #Outliers
 soilchem[soilchem$Sample=="30a",'Zn'] <- NA
 soilchem[soilchem$Sample=="12a",'Cu'] <- NA
+  #Cell #15 looks different (>80% OM) so remove
+soilchem <- soilchem[soilchem$Cell_no!="15",]
 
 cell <- read.csv(file="cell_data_NEW.csv")
 cell$Location_name <- as.character(cell$Location_name)
+#Remove cell 15 as outlier
+cell <- cell[cell$Cell_no!="15",]
 summary(cell)
 
 #Merge both datasets
@@ -96,8 +100,8 @@ text(14000,1200,"10%",pos=2)
 
 #Our data
 cdmod <- lm(log10(Cell_area)~log10(Drain_area),data=cell[cell$Drain_area!=0,])
-abline(cdmod,col="red")
-text(14000,4000,"29%",pos=2,col="red")
+abline(log10(.26),1,col="red")
+text(14000,4000,"26%",pos=2,col="red")
 
 
 legend("topleft",legend=c("New build","Retrofit"),pch=c(5,19),pt.cex=1.3,cex=0.8)
@@ -110,7 +114,7 @@ dev.off()
 ###Soil metals through time
 ```{r metal through time}
 fullsoil$offAge <- ifelse(fullsoil$Depth=="0 to 10",fullsoil$Age+0.1,fullsoil$Age-0.1)
-Cumod <- lmer(log10(Cu)~Age*Depth+log10(OM)+(1|Cell_no),data=fullsoil,REML=F)
+Cumod <- lmer(log10(Cu)~Age*Depth+(1|Cell_no),data=fullsoil,REML=F)
 Pbmod <- lmer(log10(Pb)~Age+Depth+log10(OM)+log10(OM):Age+(1|Cell_no),data=fullsoil,REML=F)
 Znmod <- lmer(log10(Zn)~Age+Depth+log10(OM)+(1|Cell_no),data=fullsoil,REML=F)
 

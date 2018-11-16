@@ -35,6 +35,7 @@ soilchem <- soilchem[soilchem$Cell_no!="15",]
 
 cell <- read.csv(file="cell_data_NEW.csv")
 cell$Location_name <- as.character(cell$Location_name)
+cell$CtoD <- 1/cell$DtoC
 
 #Remove cell 15 as outlier
 cell <- cell[cell$Cell_no!="15",]
@@ -48,7 +49,8 @@ soilchem$logd50 <- log10(soilchem$d50)
 cell$logDrain <- log10(cell$Drain_area)
 cell$logDrain[which(is.infinite(cell$logDrain))] <- NA
 cell$logCell <- log10(cell$Cell_area)
-cell$logDtoC <- cell$logDrain/cell$logCell
+cell$logDtoC <- log10(cell$Drain_area/cell$Cell_area)
+cell$logDtoC[which(is.infinite(cell$logDtoC))] <- NA
 
 #Merge both datasets
 fullsoil <- merge(soilchem,cell[,c(2:10,13:16)],by="Cell_no")
@@ -84,12 +86,13 @@ summary(rmod)
 rmod2 <- lm(logCell~logDrain+offset(logDrain),data=cordata)
 summary(rmod2)
 
-10^(rmod$coef[1])
+#Because reg slope = 1, the best estimate of the D:C is the mean/median of D:C
+1/(10^mean(cellmeans$logDtoC,na.rm=T))
 
 #Even without the large Mayfield Lib cite, there is a correlation between drain area and log cell area
 ```
 
-Variables are not that strongly correlated to each other, which is good for multiple regression. `OM` is correlated to `BD` (neg p=0.001). `Age` is negatively correlated to `LF_sus` (p<0.001). The relationship between `Age` and `Kfs` identified to Hartung's thesis is not significant when looking at cell averages. Log of `Drain_area` is correlated to the log of `Cell_area` (p<0.001), but the variables are not correlated on arithmetic scale. Also, cells are oversizes relative to recommendations (5-10%), with our average cell 44% of the area of impervious drainage area. Drainage and cells are proportional on a log scale (slope =1, p = 0.7) This suggests that practicioners size the biorentention cells on an order of magnitude difference relative to impervious drainage area and oversize them substantially.
+Variables are not that strongly correlated to each other, which is good for multiple regression. `OM` is correlated to `BD` (neg p=0.001). `Age` is negatively correlated to `LF_sus` (p<0.001). The relationship between `Age` and `Kfs` identified to Hartung's thesis is not significant when looking at cell averages. Log of `Drain_area` is correlated to the log of `Cell_area` (p<0.001), but the variables are not correlated on arithmetic scale. Also, cells are oversizes relative to recommendations (5-10%), with our average cell 26% of the area of impervious drainage area. Drainage and cells are proportional on a log scale (slope = 1, p = 0.7) This suggests that practicioners size the biorentention cells on an order of magnitude difference relative to impervious drainage area and oversize them substantially.
 
 ###Tree lawn paired t-test
 ```{r tree lawn magnetics}

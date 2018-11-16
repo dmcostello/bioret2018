@@ -51,7 +51,7 @@ cell$Location_name <- as.character(cell$Location_name)
 
 #Calculate log variables
 soilchem$logOM <- log10(soilchem$OM)
-soilchem$logBD <- log10(soilchem$BD)
+soilchem$logBD <- log10(soilchem$BDnew)
 soilchem$logd50 <- log10(soilchem$d50)
 soilchem$logCu <- log10(soilchem$Cu)
 soilchem$logZn <- log10(soilchem$Zn)
@@ -60,16 +60,16 @@ cell$logDrain <- log10(cell$Drain_area)
 #Convert the cell with no drain area to the mean of all others
 cell$logDrain[which(is.infinite(cell$logDrain))] <- mean(cell$logDrain[is.finite(cell$logDrain)])
 cell$logCell <- log10(cell$Cell_area)
-cell$logDtoC <- cell$logDrain/cell$logCell
+cell$logDtoC <- cell$logDrain-cell$logCell
 
 #chemmean <- aggregate(soilchem[,c('OM','BD','d50','logOM','logBD','logd50','Cu','Zn','Pb','logCu','logZn','logPb')],by=list(soilchem$Cell_no),median,na.rm=T)
 #Old code that used entire soil depth, now with just surface soil chemistry
-chemmean <- aggregate(soilchem[soilchem$Depth=="0 to 10",c('OM','BD','d50','logOM','logBD','logd50',
+chemmean <- aggregate(soilchem[soilchem$Depth=="0 to 10",c('OM','BDnew','d50','logOM','logBD','logd50',
                                   'Cu','Zn','Pb','logCu','logZn','logPb')],
                       by=list(soilchem[soilchem$Dept=="0 to 10",]$Cell_no),median,na.rm=T)
 cellmeans <- merge(cell,chemmean,by.x="Cell_no",by.y="Group.1")
 
-newleach <- merge(leach,cellmeans[,c(1,8:10,13:16,20:28)],by="Cell_no",all.x=T,all.y=F)
+newleach <- merge(leach,cellmeans[,c(1,8:10,13:28)],by="Cell_no",all.x=T,all.y=F)
 
 #Subsets of the different metal treatments
 leachH <- subset(newleach,newleach$Metal=="High")
@@ -98,14 +98,12 @@ anova(CuH0r,CuH0)
   #Random effect is significant (p<0.001)
 
 #Step 1, test for first fixed variable
-candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','logBD','logd50','Cu','Location','logCu')
-loc <- which(names(leachH) %in% candvar)
-names(leachH)[loc]
+candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','BDnew','logd50','Cu','Location','logCu')
 
-CuHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
 
 for(i in 1:length(candvar)){
-  Cudata <- cbind(leachH[,c('Cell_no','Curemove')],leachH[,loc[i]])
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove')],leachH[,candvar[i]])
   Cudata <- Cudata[complete.cases(Cudata),]
   
   MCu1 <- lmer(logit(Curemove)~(1|Cell_no),data=Cudata,REML=F)
@@ -115,17 +113,16 @@ for(i in 1:length(candvar)){
 }
 
 CuHresult[order(CuHresult$Pval),] #Add Retrofit
+#Age is second (p =0.017)
 
 #Step 2, test for second fixed variable
-candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50',
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','BDnew','logd50',
              'Cu','logCu','Location')
-loc <- which(names(leachH) %in% candvar)
-names(leachH)[loc]
 
-CuHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
 
 for(i in 1:length(candvar)){
-  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit')],leachH[,loc[i]])
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit')],leachH[,candvar[i]])
   Cudata <- Cudata[complete.cases(Cudata),]
   
   MCu1 <- lmer(logit(Curemove)~Retrofit+(1|Cell_no),data=Cudata,REML=F)
@@ -134,49 +131,88 @@ for(i in 1:length(candvar)){
   CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuHresult[order(CuHresult$Pval),] #Add log OM
+CuHresult[order(CuHresult$Pval),] #Add BD
 
 #Second step model
-CuH1 <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=leachH,REML=F)
-CuH2 <- lmer(logit(Curemove)~Retrofit*logOM+(1|Cell_no),data=leachH,REML=F)
+CuH1 <- lmer(logit(Curemove)~Retrofit+BDnew+(1|Cell_no),data=leachH,REML=F)
+CuH2 <- lmer(logit(Curemove)~Retrofit*BDnew+(1|Cell_no),data=leachH,REML=F)
 anova(CuH1,CuH2)
 #Interaction is not signficant
 
 #Step 3, test for third fixed variable
 candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logBD','logd50',
              'Cu','logCu','Location')
-loc <- which(names(leachH) %in% candvar)
-names(leachH)[loc]
 
-CuHresult <- data.frame("Variable"=names(leachH)[loc],"Pval"=NA)
+CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
 
 for(i in 1:length(candvar)){
-  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit','logOM')],leachH[,loc[i]])
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit','BDnew')],leachH[,candvar[i]])
   Cudata <- Cudata[complete.cases(Cudata),]
   
-  MCu1 <- lmer(logit(Curemove)~Retrofit+(1|Cell_no),data=Cudata,REML=F)
-  MCu2 <- lmer(logit(Curemove)~Retrofit+Cudata[[5]]+(1|Cell_no),data=Cudata,REML=F)
+  MCu1 <- lmer(logit(Curemove)~Retrofit+BDnew+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Retrofit+BDnew+Cudata[[5]]+(1|Cell_no),data=Cudata,REML=F)
   
   CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuHresult[order(CuHresult$Pval),] #Nothing else to add
+CuHresult[order(CuHresult$Pval),] #Add Cu
+
+#Third step model
+CuH3 <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+(1|Cell_no),data=leachH,REML=F)
+CuH4 <- lmer(logit(Curemove)~Retrofit*BDnew+Cu+Cu:Retrofit+(1|Cell_no),data=leachH,REML=F)
+anova(CuH3,CuH4)
+
+CuH5 <- lmer(logit(Curemove)~Retrofit*BDnew+Cu+Cu:BDnew+(1|Cell_no),data=leachH,REML=F)
+anova(CuH3,CuH5)
+  #None of the interactions are significant
+
+#Step 4, test for fourth fixed variable
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logBD','logd50',
+             'logCu','Location')
+
+CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
+
+for(i in 1:length(candvar)){
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit','BDnew','Cu')],leachH[,candvar[i]])
+  Cudata <- Cudata[complete.cases(Cudata),]
+  
+  MCu1 <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+Cudata[[6]]+(1|Cell_no),data=Cudata,REML=F)
+  
+  CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+}
+
+CuHresult[order(CuHresult$Pval),] #Add Cu
+#Nothing else is significant
 
 #FINAL MODEL
-CuH <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=leachH,REML=F)
+CuH <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+(1|Cell_no),data=leachH,REML=F)
 summary(CuH)
 plot(CuH)
 
-newOM <- quantile(leachH$logOM,na.rm=T,0.5)
+medBD <- quantile(leachH$BDnew,na.rm=T,0.5)
+medCu <- quantile(leachH$Cu,na.rm=T,0.5)
+lowBD <- quantile(leachH$BDnew,na.rm=T,0.1)
+lowCu <- quantile(leachH$Cu,na.rm=T,0.1)
 
-inv.logit(predict(CuH,newdata=list(Retrofit="yes",logOM=newOM),re.form=~0))
-inv.logit(predict(CuH,newdata=list(Retrofit="no",logOM=newOM),re.form=~0))
+inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=medCu),re.form=~0))
+inv.logit(predict(CuH,newdata=list(Retrofit="no",BDnew=medBD,Cu=medCu),re.form=~0))
+  #Retrofits sorb less Cu
+
+inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=medCu),re.form=~0))
+inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=lowCu),re.form=~0))
+  #Low Cu means less Cu sorbed
+
+inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=medCu),re.form=~0))
+inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=lowBD,Cu=medCu),re.form=~0))
+  #Low bulk density means less Cu sorbed
 
 #Find how many samples were at DL in retrofit cells
 with(leachH,tapply(Curemove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}))
 with(leachH,tapply(Curemove,Retrofit,function(X){sum(!is.na(X))}))
 ```
 
+RESTART HERE - THE MODEL CHANGED FOR CU
 A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p<0.001). Retrofit cells only removed 77% of added Cu but new builds removed 90%. New builds had 22 samples <DL (out of 61) but retrofits had only 1 (out of 39). Soils with greater OM have less metal removal. In new builds, low OM (10%) removed 92% of Cu but high OM (90%) removed 84%. 
 
 ```{r Low metal stormwater}
