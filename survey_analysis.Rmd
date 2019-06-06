@@ -32,6 +32,7 @@ soilchem[soilchem$Sample=="12a",'Cu'] <- NA
 
 #Cell #15 looks different (>80% OM) so remove
 soilchem <- soilchem[soilchem$Cell_no!="15",]
+soilchem$Cell_no <- soilchem$Cell_no[,drop=T]
 
 cell <- read.csv(file="cell_data_NEW.csv")
 cell$Location_name <- as.character(cell$Location_name)
@@ -39,7 +40,7 @@ cell$CtoD <- 1/cell$DtoC
 
 #Remove cell 15 as outlier
 cell <- cell[cell$Cell_no!="15",]
-
+cell$Cell_no <- cell$Cell_no[,drop=T]
 summary(cell)
 
 #Calculate log variables
@@ -65,7 +66,7 @@ with(soilchem,tapply(OM,list(Depth,Location),length))
 ###Correlations
 ```{r cell correlations}
 #Calculate mean OM, BD, and d50 for cells
-chemmean <- aggregate(soilchem[,c('OM','BDnew','d50','logOM','logBD','logd50')],
+chemmean <- aggregate(soilchem[,c('OM','BDnew','d50','logOM','logBD','logd50','Clay','Silt','Sand')],
                       by=list(soilchem$Cell_no),median,na.rm=T)
 cellmeans <- merge(cell,chemmean,by.x="Cell_no",by.y="Group.1")
 cordata <- cellmeans[,c('Age','Cell_area','Drain_area','Kfs','LF_sus','OM','BDnew','d50',
@@ -114,6 +115,8 @@ t.test(logDrain~Retrofit,data=cellmeans)
 t.test(Drain_area~Retrofit,data=cellmeans)
 t.test(logCell~Retrofit,data=cellmeans)
 t.test(logDtoC~Retrofit,data=cellmeans)
+t.test(Silt~Retrofit,data=cellmeans)
+t.test(Age~Retrofit,data=cellmeans)
 
 with(cellmeans,tapply(OM,Retrofit,median))
 plot(Drain_area~Retrofit,data=cellmeans)
@@ -170,6 +173,7 @@ summary(d50mod)
 plot(d50mod)
 
 #d50 did not differ among depth or location
+
 d50mod3 <- lme(logd50~1,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
 d50mod4 <- lme(logd50~Age,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
 anova(d50mod3,d50mod4)
@@ -178,6 +182,32 @@ anova(d50mod3,d50mod4)
 d50mod5 <- lme(logd50~Retrofit,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
 anova(d50mod3,d50mod5)
 #Retrofit doesn't explain particle size (p = 0.34)
+
+  ##CLAY##
+clmod <- lme(log(Clay)~Depth*Location,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+clmod2 <- lm(log(Clay)~Depth*Location,data=fullsoil)
+anova(clmod,clmod2)
+#Clay differed among all cells (random effect p = 0.001)
+summary(clmod)
+anova(clmod)
+plot(clmod)
+#log(Clay) did not differ among depth or location
+
+clmod3 <- lme(log(Clay)~1,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+clmod4 <- lme(log(Clay)~Age,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(clmod3,clmod4)
+anova(clmod4)
+plot(Clay~Age,data=fullsoil,log="y")
+#Age was marginally related to Clay content (p = 0.03). Older cells had less clay.
+
+clmod5 <- lme(log(Clay)~Retrofit,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+anova(clmod3,clmod5)
+anova(clmod5)
+plot(Clay~Retrofit,data=fullsoil,log="y")
+#Retrofits have slightly more clay than de novo builds (p = 0.035).
+
+plot(Clay~Cell_no,data=fullsoil,log="y",las=3)
+
 ```
 
 Median partical size differed among the cells, but broader soil characteristics like bulk density and organic matter content were fairly similar among cells. d50, OM, and BD did not differ between the inflow and drain, but the surface soils had higher OM and lower BD (no difference in d50). Age and construction style also did not influence d50, OM, or BD.
@@ -471,3 +501,49 @@ lines(newage,exp(lowOM))
 ```
 
 Pb in bioretention soils increase through time, but only in soils that had higher OM content (Age x log(OM) p = 0.0001). Low OM content soils showed no accumulation of Pb through time, but high OM soils accumuated substantial Pb (20-150 mg/kg over a 7 year period). Deep soils overall had less Pb (p=0.016) but even deep soils with high OM accumulated Pb over time.
+
+##What is unique about Retrofits
+```{r}
+plot(Cell_area~Retrofit,data=cellmeans,log="y",las=1,ylim=c(10,10000))
+t.test(logCell~Retrofit,data=cellmeans)
+  #Marginally smaller size (p = 0.08)
+
+plot(logDtoC~Retrofit,data=cellmeans)
+t.test(logDtoC~Retrofit,data=cellmeans)
+
+plot(Age~Retrofit,data=cellmeans,las=1)
+t.test(Age~Retrofit,data=cellmeans)
+  #Retrofits are younger than de novo cells
+
+plot(Kfs~Age,data=cellmeans,col=c("black","red")[Retrofit],log="y")
+Kmod <- lm(log10(Kfs)~Age*Retrofit,data=cellmeans)
+summary(Kmod)
+abline(Kmod)
+xyplot(log(Kfs)~Age,groups=Retrofit,data=cellmeans,type=c("r","p"),
+key=list(corner=c(1,1),lines=list(col=c("#0080ff","#ff00ff")),text=list(c("de novo","retrofit"))))
+  #No real change in Kfs through time or between cell types
+
+Cmod <- lme(log(Clay)~Age,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+summary(Cmod)
+  #Older cells have less clay
+
+CAfit <- lmer(log10(Clay)~Age+(1|Cell_no),data=fullsoil,REML=F)
+xAge <- seq(0,7,length=50)
+CAmar<-predict(CAfit,newdata=expand.grid(Age=xAge),re.form=NA)
+plot(log10(Clay)~Age,data=fullsoil,col=c("black","red")[Retrofit])
+lines(xAge,CAmar)
+
+Cmod2 <- lme(log(Clay)~Retrofit,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+summary(Cmod2)
+plot(log10(Clay)~Retrofit,data=fullsoil)
+  #Retrofits have more clay
+
+OMfit <- lme(logOM~Age*Retrofit+Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+anova(OMfit)
+plot(logOM~Age,data=fullsoil,col=c("black","red")[Retrofit],las=1)
+summary(OMfit)
+abline(1.11,-0.022)
+abline((1.11-0.21),(-0.022+0.082),col="red")
+  #Retrofits have less OM when built but are increasing with age. De novo builds seem stable and higher
+```
+

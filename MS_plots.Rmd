@@ -84,7 +84,8 @@ saltleach$Cell_no <- factor(saltleach$Cell_no)
 
 ###Bioretention cell size
 ```{r cell v. drain size}
-pdf(file="./Figures/cellsize.pdf",height=4,width=4)
+#pdf(file="./Figures/cellsize.pdf",height=4,width=4)
+png(file="./Figures/cellsize.png",height=4,width=4,units="in",res=600)
 par(pin=c(2.5,2.5),mai=c(1,1,0.5,0.5))
 plot(Cell_area~Drain_area,data=cell,log="xy",ylim=c(10,10000),xlim=c(100,10000),xaxt="n",yaxt="n",
      xlab=expression("Drainage basin area (m"^2*")"),ylab=expression("Bioretention cell area (m"^2*")"),
@@ -104,7 +105,7 @@ abline(log10(.26),1,col="red")
 text(14000,4000,"26%",pos=2,col="red")
 
 
-legend("topleft",legend=c("New build","Retrofit"),pch=c(5,19),pt.cex=1.3,cex=0.8)
+legend("topleft",legend=c(expression(italic("de novo")),"retrofit"),pch=c(5,19),pt.cex=1.3,cex=0.8)
 
 points(100,345,pch=19,cex=1.3,col="grey75") #Cell with no drainage area
 
@@ -119,23 +120,18 @@ Pbmod <- lmer(log10(Pb)~Age+Depth+log10(OM)+log10(OM):Age+(1|Cell_no),data=fulls
 Znmod <- lmer(log10(Zn)~Age+Depth+log10(OM)+(1|Cell_no),data=fullsoil,REML=F)
 
 xAge <- seq(0,7,length=50)
-yCudep <- predict(Cumod,newdata=list(Age=xAge,Depth=rep("10 to 20",length(xAge)),
-                                     OM=rep(median(fullsoil$OM,na.rm=T),length(xAge))),re.form=~0)
-yCush <- predict(Cumod,newdata=list(Age=xAge,Depth=rep("0 to 10",length(xAge)),
-                                     OM=rep(median(fullsoil$OM,na.rm=T),length(xAge))),re.form=~0)
+yCudep<-predict(Cumod,newdata=expand.grid(Age=xAge,Depth="10 to 20",OM=median(fullsoil$OM,na.rm=T)),re.form=NA)
+yCush<-predict(Cumod,newdata=expand.grid(Age=xAge,Depth="0 to 10",OM=median(fullsoil$OM,na.rm=T)),re.form=NA)
 
-yPbdep <- predict(Pbmod,newdata=list(Age=xAge,Depth=rep("10 to 20",length(xAge)),
-                                     OM=rep(median(fullsoil$OM,na.rm=T),length(xAge))),re.form=~0)
-yPbsh <- predict(Pbmod,newdata=list(Age=xAge,Depth=rep("0 to 10",length(xAge)),
-                                     OM=rep(median(fullsoil$OM,na.rm=T),length(xAge))),re.form=~0)
+yPbdep<-predict(Pbmod,newdata=expand.grid(Age=xAge,Depth="10 to 20",OM=median(fullsoil$OM,na.rm=T)),re.form=NA)
+yPbsh<-predict(Pbmod,newdata=expand.grid(Age=xAge,Depth="0 to 10",OM=median(fullsoil$OM,na.rm=T)),re.form=NA)
 
-yZnS <- predict(Znmod,newdata=list(Age=xAge,Depth=rep("0 to 10",length(xAge)),
-                                   OM=rep(median(fullsoil$OM,na.rm=T),length(xAge))),re.form=~0)
-yZnD <- predict(Znmod,newdata=list(Age=xAge,Depth=rep("10 to 20",length(xAge)),
-                                   OM=rep(median(fullsoil$OM,na.rm=T),length(xAge))),re.form=~0)
+yZnS<-predict(Znmod,newdata=expand.grid(Age=xAge,Depth="0 to 10",OM=median(fullsoil$OM,na.rm=T)),re.form=NA)
+yZnD<-predict(Znmod,newdata=expand.grid(Age=xAge,Depth="10 to 20",OM=median(fullsoil$OM,na.rm=T)),re.form=NA)
 
   
-pdf(file="./Figures/cellmetal.pdf",height=5,width=3)
+#pdf(file="./Figures/cellmetal.pdf",height=5,width=3)
+png(file="./Figures/cellmetal.png",height=5,width=3,units="in",res=300)
 
 par(mfrow=c(3,1),oma=c(3,5,0,1),mar=c(0,0,2,0))
 plot(Cu~offAge,data=fullsoil,log="y",yaxt="n",ylim=c(5,1000),xaxt="n",
@@ -147,7 +143,7 @@ axis(1,labels=F)
 mtext(expression("Soil Cu (mg kg"^-1*")"),2,line=3,cex=0.8)
 mtext("a",2,line=-1,at=800,las=1)
 
-legend("topright",legend=c("Surface (0-10 cm)","Deep (10-20 cm)"),pch=c(1,15),
+legend("topright",legend=c("surface (0-10 cm)","deep (10-20 cm)"),pch=c(1,15),
        col=c("black","red"),lty=1)
 
 par(mar=c(1,0,1,0))
@@ -176,7 +172,8 @@ dev.off()
 
 ###Metal removal 
 ```{r removal efficiency}
-pdf(file="./Figures/metalleach.pdf",height=5.25,width=3)
+#pdf(file="./Figures/metalleach.pdf",height=5.25,width=3)
+png(file="./Figures/metalleach.png",height=5.25,width=3,units="in",res=300)
 
 par(mfrow=c(2,3),oma=c(1,5,1,1),mar=c(0.25,0.25,4,0.25),xaxt="n")
 plot.new()
@@ -184,7 +181,7 @@ abline(h=max(leachH$Curemove,na.rm=T)+0.005,col="red")
 boxplot(Curemove~Retrofit,data=leachH,col=c("white","grey50"),las=1,add=T,at=c(0.25,0.75),boxwex=0.4)
 mtext("Cu",3,0,cex=0.8)
 mtext("Proportion removed",2,3)
-legend("bottomleft",legend=c("New build","Retrofit"),fill=c("white","grey50"),cex=0.8,bty="n")
+legend("bottomleft",legend=c(expression(italic("de novo")),"retrofit"),fill=c("white","grey50"),cex=0.8,bty="n")
 plot.new()
 abline(h=max(leachH$Pbremove,na.rm=T)+0.01,col="red")
 plot(Pbremove~Retrofit,data=leachH,yaxt="n",col=c("white","grey50"),add=T,at=c(0.25,0.75),boxwex=0.4)
@@ -233,7 +230,8 @@ dev.off()
 
 ###Salty comparison leaching
 ```{r}
-pdf(file="./Figures/salty.pdf",height=5,width=3)
+#pdf(file="./Figures/salty.pdf",height=5,width=3)
+png(file="./Figures/salty.png",height=5,width=3,units="in",res=300)
 
 par(mfrow=c(3,1),oma=c(3,6,0,0),mar=c(0,0,1,0))
 

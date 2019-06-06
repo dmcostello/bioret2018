@@ -13,7 +13,6 @@ library(MASS)
 library(lme4)
 library(AER)
 
-setwd("/Users/dcostel3/Desktop/Bioretention/2018 analysis")
 ```
 
 ###References for Tobit/censored regression
@@ -38,6 +37,8 @@ leach$Curemove[leach$Curemove<0] <-0 #Set all negative "removals" (i.e., soils a
 leach$Znremove <- with(leach,(Zn_in_meas-Zn_conc)/Zn_in_meas) #Calculate % removal 
 leach$Znremove[leach$Znremove<0] <-0 #Set all negative "removals" (i.e., soils added Zn) to zero
 leach$Pbremove <- with(leach,(Pb_in_meas-Pb_conc)/Pb_in_meas) #Calculate % removal 
+leach$AgeF <- cut(leach$Age,breaks=c(-Inf,3,Inf),include.lowest=T,labels=c("Young","Old"))
+  #Factorize age 0-3 4-7
 
 #Cell characteristics (from survey analysis)
 soilchem <- read.csv(file="soil_metal_NEW.csv")
@@ -56,6 +57,7 @@ soilchem$logd50 <- log10(soilchem$d50)
 soilchem$logCu <- log10(soilchem$Cu)
 soilchem$logZn <- log10(soilchem$Zn)
 soilchem$logPb <- log10(soilchem$Pb)
+soilchem$logClay <- log10(soilchem$Clay)
 cell$logDrain <- log10(cell$Drain_area)
 #Convert the cell with no drain area to the mean of all others
 cell$logDrain[which(is.infinite(cell$logDrain))] <- mean(cell$logDrain[is.finite(cell$logDrain)])
@@ -64,12 +66,12 @@ cell$logDtoC <- cell$logDrain-cell$logCell
 
 #chemmean <- aggregate(soilchem[,c('OM','BD','d50','logOM','logBD','logd50','Cu','Zn','Pb','logCu','logZn','logPb')],by=list(soilchem$Cell_no),median,na.rm=T)
 #Old code that used entire soil depth, now with just surface soil chemistry
-chemmean <- aggregate(soilchem[soilchem$Depth=="0 to 10",c('OM','BDnew','d50','logOM','logBD','logd50',
-                                  'Cu','Zn','Pb','logCu','logZn','logPb')],
+chemmean <- aggregate(soilchem[soilchem$Depth=="0 to 10",c('OM','BDnew','d50','logOM','logBD','logClay',
+                                  'logd50','Cu','Zn','Pb','logCu','logZn','logPb')],
                       by=list(soilchem[soilchem$Dept=="0 to 10",]$Cell_no),median,na.rm=T)
 cellmeans <- merge(cell,chemmean,by.x="Cell_no",by.y="Group.1")
 
-newleach <- merge(leach,cellmeans[,c(1,8:10,13:28)],by="Cell_no",all.x=T,all.y=F)
+newleach <- merge(leach,cellmeans[,c(1,8:10,13:29)],by="Cell_no",all.x=T,all.y=F)
 
 #Subsets of the different metal treatments
 leachH <- subset(newleach,newleach$Metal=="High")
@@ -98,7 +100,7 @@ anova(CuH0r,CuH0)
   #Random effect is significant (p<0.001)
 
 #Step 1, test for first fixed variable
-candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','BDnew','logd50','Cu','Location','logCu')
+candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','BDnew','logd50','Cu','Location','logCu','logClay','AgeF')
 
 CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
 
