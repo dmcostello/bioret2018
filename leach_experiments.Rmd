@@ -157,7 +157,7 @@ for(i in 1:length(candvar)){
   CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuHresult[order(CuHresult$Pval),] #Add Cu
+CuHresult[order(CuHresult$Pval),] #Cu is close (p=0.045) but log(Cu) is not sig.
 
 #Third step model
 CuH3 <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+(1|Cell_no),data=leachH,REML=F)
@@ -214,8 +214,7 @@ with(leachH,tapply(Curemove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}
 with(leachH,tapply(Curemove,Retrofit,function(X){sum(!is.na(X))}))
 ```
 
-RESTART HERE - THE MODEL CHANGED FOR CU
-A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p<0.001). Retrofit cells only removed 77% of added Cu but new builds removed 90%. New builds had 22 samples <DL (out of 61) but retrofits had only 1 (out of 39). Soils with greater OM have less metal removal. In new builds, low OM (10%) removed 92% of Cu but high OM (90%) removed 84%. 
+A large proportion of Cu was removed from high metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p<0.001). Retrofit cells only removed 77% of added Cu but new builds removed 90%. New builds had 22 samples <DL (out of 61) but retrofits had only 1 (out of 39). Soils with greater BD have more metal removal. Soils with higher background Cu had greater Cu removal (small magnitude effect).
 
 ```{r Low metal stormwater}
 plot(leachL$Curemove,ylim=c(0,1)) #Four values of zero
@@ -231,44 +230,39 @@ anova(CuL0r,CuL0)
   #Random effect is significant (p<0.001)
 
 #Step 1, test for first fixed variable
-candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','logBD',
-             'logd50','Cu','logCu','Location')
-loc <- which(names(leachL) %in% candvar)
-names(leachL)[loc]
+candvar <- c('Age','Kfs','Retrofit','logDrain','logCell','logDtoC','logOM','BDnew','logd50','Cu','Location','logCu')
 
-CuLresult <- data.frame("Variable"=names(leachL)[loc],"Pval"=NA)
+CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
 
 for(i in 1:length(candvar)){
-  Cudata <- cbind(leachL[,c('Cell_no','Curemovenew')],leachL[,loc[i]])
+  Cudata <- cbind(leachL[,c('Cell_no','Curemove')],leachL[,candvar[i]])
   Cudata <- Cudata[complete.cases(Cudata),]
   
-  MCu1 <- lmer(logit(Curemovenew)~(1|Cell_no),data=Cudata,REML=F)
-  MCu2 <- lmer(logit(Curemovenew)~Cudata[[3]]+(1|Cell_no),data=Cudata,REML=F)
+  MCu1 <- lmer(logit(Curemove)~(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Cudata[[3]]+(1|Cell_no),data=Cudata,REML=F)
   
-  CuLresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+  CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuLresult[order(CuLresult$Pval),] #Add Retrofit
+CuHresult[order(CuHresult$Pval),] #Add Retrofit
 
 #Step 2, test for second fixed variable
-candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','logBD','logd50',
-             'Cu','logCu','Location')
-loc <- which(names(leachL) %in% candvar)
-names(leachL)[loc]
+candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logOM','BDnew','logd50','Cu','Location','logCu')
 
-CuLresult <- data.frame("Variable"=names(leachL)[loc],"Pval"=NA)
+CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
 
 for(i in 1:length(candvar)){
-  Cudata <- cbind(leachL[,c('Cell_no','Curemovenew','Retrofit')],leachL[,loc[i]])
+  Cudata <- cbind(leachL[,c('Cell_no','Curemove','Retrofit')],leachL[,candvar[i]])
   Cudata <- Cudata[complete.cases(Cudata),]
   
-  MCu1 <- lmer(logit(Curemovenew)~Retrofit+(1|Cell_no),data=Cudata,REML=F)
-  MCu2 <- lmer(logit(Curemovenew)~Retrofit+Cudata[[4]]+(1|Cell_no),data=Cudata,REML=F)
+  MCu1 <- lmer(logit(Curemove)~Retrofit+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Retrofit+Cudata[[4]]+(1|Cell_no),data=Cudata,REML=F)
   
-  CuLresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
+  CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuLresult[order(CuLresult$Pval),] #Don't add anything else
+CuHresult[order(CuHresult$Pval),] #Don't add anything else
+
 
 #FINAL MODEL
 CuL <- lmer(logit(Curemovenew)~Retrofit+(1|Cell_no),data=leachL,REML=F)
@@ -287,6 +281,9 @@ with(leachL,tapply(Curemove,Retrofit,function(X){sum(!is.na(X))}))
 
 A intermediate proportion of Cu was removed from low metal stormwater, but the removal efficiency differed between retrofit and new build biorentention cell soils (p=0.018). Retrofit cells only removed 41% of added Cu but new builds removed 59%. Same pattern as what was observed for high metal stormwater.
 
+###RESTART HERE
+Change candidate variables from BD to BDnew
+Can remove loc[i] indexing
 ###Zn leaching
 ```{r High metal stormwater}
 plot(leachH$Znremove,ylim=c(0,1))
