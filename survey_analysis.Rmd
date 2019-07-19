@@ -57,8 +57,9 @@ cell$logDtoC[which(is.infinite(cell$logDtoC))] <- NA
 fullsoil <- merge(soilchem,cell[,c(2:10,13:16)],by="Cell_no")
 summary(fullsoil)
 
+#Figure out missing data
 with(soilchem,tapply(OM,list(Depth,Location),length))
-
+with(soilchem[soilchem$Depth=="0 to 10",],tapply(OM,list(Cell_no,Location),mean))
 
 ```
 
