@@ -539,6 +539,10 @@ summary(Cmod2)
 plot(log10(Clay)~Retrofit,data=fullsoil)
   #Retrofits have more clay
 
+Dmod <- lme(logd50~Age+Retrofit,random=~1|Cell_no,data=fullsoil,na.action=na.omit,method="ML")
+summary(Dmod)
+
+
 OMfit <- lme(logOM~Age*Retrofit+Depth,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
 anova(OMfit)
 plot(logOM~Age,data=fullsoil,col=c("black","red")[Retrofit],las=1)
@@ -546,5 +550,6 @@ summary(OMfit)
 abline(1.11,-0.022)
 abline((1.11-0.21),(-0.022+0.082),col="red")
   #Retrofits have less OM when built but are increasing with age. De novo builds seem stable and higher
+with(fullsoil,tapply(logOM,Depth,mean,na.rm=T))
 ```
 
