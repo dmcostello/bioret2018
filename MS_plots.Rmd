@@ -152,6 +152,8 @@ logaxis(0,3,2)
 axis(1,labels=F)
 mtext(expression("Soil Cu (mg kg"^-1*")"),2,line=3,cex=0.8)
 mtext("a",2,line=-1,at=800,las=1)
+abline(h=70,lty=2,col="darkgreen")
+text(1,100,"Plant Eco-SSL",col="darkgreen")
 
 legend("topright",legend=c("surface (0-10 cm)","deep (10-20 cm)"),pch=c(1,15),
        col=c("black","red"),lty=1)
@@ -165,6 +167,7 @@ mtext(expression("Soil Pb (mg kg"^-1*")"),2,line=3,cex=0.8)
 mtext("b",2,line=-1,at=800,las=1)
 lines(xAge,10^yPbdep,col="red")
 lines(xAge,10^yPbsh,col="black")
+abline(h=120,lty=2,col="darkgreen")
 
 par(mar=c(2,0,0,0))
 plot(Zn~offAge,data=fullsoil,log="y",yaxt="n",ylim=c(10,1000),
@@ -175,7 +178,7 @@ mtext("Age (yr)",1,line=3,cex=0.8)
 mtext("c",2,line=-1,at=800,las=1)
 lines(xAge,10^yZnD,col="red")
 lines(xAge,10^yZnS,col="black")
-
+abline(h=160,lty=2,col="darkgreen")
 
 dev.off()
 ```

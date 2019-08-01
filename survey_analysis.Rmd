@@ -300,8 +300,9 @@ plot(MZn2.1)
 MZn2.1nlme <- lme(log(Zn)~Age+Depth+log(OM),random=~1|Cell_no,data=fullsoil,na.action=na.omit)
 anova(MZn2.1nlme)
 
-(newOM <- quantile(fullsoil$logOM,0.1,na.rm=T))
-exp(predict(MZn2.1,newdata=list(Age=seq(0,7),Depth=rep("0 to 10",8),logOM=rep(newOM,8)),re.form=~0))
+testage <- seq(0,50)
+(newOM <- quantile(fullsoil$logOM,0.5,na.rm=T))
+exp(predict(MZn2.1,newdata=expand.grid(Age=testage,Depth="0 to 10",logOM=newOM),re.form=NA))
 
 ```
 
@@ -353,32 +354,32 @@ for(i in 1:length(candvar)){
 }
 
 Curesult[order(Curesult$Pval),]
-#INCLUDE BD (p<0.001).
+#ADD OM (p<0.001).
 
 #REFINE THE Cu MODEL
-MCu2 <- lmer(log(Cu)~Age*Depth+BDnew+(1|Cell_no),data=fullsoil,REML=F)
-MCu2.1 <- lmer(log(Cu)~Age*Depth+BDnew+BDnew:Depth+(1|Cell_no),data=fullsoil,REML=F)
+MCu2 <- lmer(log(Cu)~Age*Depth+logOM+(1|Cell_no),data=fullsoil,REML=F)
+MCu2.1 <- lmer(log(Cu)~Age*Depth+logOM+logOM:Depth+(1|Cell_no),data=fullsoil,REML=F)
 anova(MCu2,MCu2.1)
 
-MCu2.2 <- lmer(log(Cu)~Age*Depth+BDnew+BDnew:Age+(1|Cell_no),data=fullsoil,REML=F)
+MCu2.2 <- lmer(log(Cu)~Age*Depth+logOM+logOM:Age+(1|Cell_no),data=fullsoil,REML=F)
 anova(MCu2.2,MCu2)
 
-MCu2.3 <- lmer(log(Cu)~Age*Depth*BDnew+(1|Cell_no),data=fullsoil,REML=F)
+MCu2.3 <- lmer(log(Cu)~Age*Depth*logOM+(1|Cell_no),data=fullsoil,REML=F)
 anova(MCu2.3,MCu2)
-  #No signficant interactions between BD and other variables
+  #No signficant interactions between OM and other variables
 
-#STEP 2 - See if other variables besides BD should be included
+#STEP 2 - See if other variables besides OM should be included
 candvar <- c('Cell_area','d50','Drain_area','DtoC','Kfs','LF_sus','HF_sus',
              'logCell','logDrain','logDtoC','logBD','logd50','Retrofit')
 
 Curesult <- data.frame("Variable"=candvar,"Pval"=NA)
 
 for(i in 1:length(candvar)){
-  Cudata <- fullsoil[,c('Cell_no','Cu','Depth','Age','BDnew',candvar[i])]
+  Cudata <- fullsoil[,c('Cell_no','Cu','Depth','Age','logOM',candvar[i])]
   Cudata <- Cudata[complete.cases(Cudata),]
   
-  MCu1 <- lmer(log(Cu)~Age*Depth+BDnew+(1|Cell_no),data=Cudata,REML=F)
-  MCu2 <- lmer(log(Cu)~Age*Depth+BDnew+Cudata[[6]]+(1|Cell_no),data=Cudata,REML=F)
+  MCu1 <- lmer(log(Cu)~Age*Depth+logOM+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(log(Cu)~Age*Depth+logOM+Cudata[[6]]+(1|Cell_no),data=Cudata,REML=F)
   
   Curesult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
@@ -387,16 +388,17 @@ Curesult[order(Curesult$Pval),]
 #No other variables are worth including.
 
 #FINAL MODEL
-MCu2 <- lmer(log(Cu)~Age*Depth+BDnew+(1|Cell_no),data=fullsoil,REML=F)
+MCu2 <- lmer(log(Cu)~Age*Depth+logOM+(1|Cell_no),data=fullsoil,REML=F)
 summary(MCu2)
 plot(MCu2)
 
-MCu2nlme <- lme(log(Cu)~Age*Depth+BDnew,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
+MCu2nlme <- lme(log(Cu)~Age*Depth+logOM,random=~1|Cell_no,data=fullsoil,na.action=na.omit)
 anova(MCu2nlme)
 
-(newBD <- quantile(fullsoil$BDnew,0.05,na.rm=T))
-exp(predict(MCu2,newdata=list(Age=seq(0,7),Depth=rep("0 to 10",8),BDnew=rep(newBD,8)),re.form=~0))
-
+testage <- seq(0,50)
+(newOM <- quantile(fullsoil$logOM,0.5,na.rm=T))
+predict(MCu2,newdata=expand.grid(Age=testage,Depth="0 to 10",logOM=newOM),re.form=NA)
+#Eco-SSL for plants (70 mg/kg) reached at 22 years
 ```
 
 Surface soils in biorentention cells increase in Cu concentrations as they age, but deeper soils have more stable Cu concentrations (p=0.009). Cu is greater in low BD soils and across the range of cells we measured (looked at 95% of BD) there is a 50% greater concentration of Cu on low BD soils.
@@ -492,16 +494,24 @@ anova(MPb2nlme)
 
 #Predictions to try and interpret the model
 newage <- seq(0,7)
-(newOM <- quantile(fullsoil$logOM,0.1,na.rm=T))
-highOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("0 to 10",8),logOM=rep(newOM,8)),re.form=~0)
-lowOM <- predict(MPb2.2,newdata=list(Age=newage,Depth=rep("10 to 20",8),logOM=rep(newOM,8)),re.form=~0)
+(newOM <- quantile(fullsoil$logOM,0.9,na.rm=T))
+highOM <- predict(MPb2.2,newdata=expand.grid(Age=newage,Depth="10 to 20",logOM=quantile(fullsoil$logOM,0.9,na.rm=T)),re.form=NA)
+lowOM <- predict(MPb2.2,newdata=expand.grid(Age=newage,Depth="10 to 20",logOM=quantile(fullsoil$logOM,0.1,na.rm=T)),re.form=NA)
 
 plot(Pb~Age,data=fullsoil)
 lines(newage,exp(highOM))
 lines(newage,exp(lowOM))
+
+#Extrapolate to EPA criteria
+testage <- seq(0,50)
+exp(predict(MPb2.2,newdata=expand.grid(Age=testage,Depth="10 to 20",logOM=quantile(fullsoil$logOM,0.9,na.rm=T)),re.form=NA))
+#Hits EPA residential limit (400 mg/kg) at 20 years
+#Hits Eco-SSL for plants (200 mg/kg) at 16 years
 ```
 
 Pb in bioretention soils increase through time, but only in soils that had higher OM content (Age x log(OM) p = 0.0001). Low OM content soils showed no accumulation of Pb through time, but high OM soils accumuated substantial Pb (20-150 mg/kg over a 7 year period). Deep soils overall had less Pb (p=0.016) but even deep soils with high OM accumulated Pb over time.
+
+If we extrapolate our data, we see that the Eco-SSL for plants is reached by a high OM (90th centile) bioretention cell surface soil after 16 years and the residential use threshold after 20 years. 
 
 ##What is unique about Retrofits
 ```{r}
