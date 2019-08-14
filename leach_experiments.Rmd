@@ -133,11 +133,11 @@ for(i in 1:length(candvar)){
   CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuHresult[order(CuHresult$Pval),] #Add BD
+CuHresult[order(CuHresult$Pval),] #Add logOM
 
 #Second step model
-CuH1 <- lmer(logit(Curemove)~Retrofit+BDnew+(1|Cell_no),data=leachH,REML=F)
-CuH2 <- lmer(logit(Curemove)~Retrofit*BDnew+(1|Cell_no),data=leachH,REML=F)
+CuH1 <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=leachH,REML=F)
+CuH2 <- lmer(logit(Curemove)~Retrofit*logOM+(1|Cell_no),data=leachH,REML=F)
 anova(CuH1,CuH2)
 #Interaction is not signficant
 
@@ -148,66 +148,24 @@ candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logBD','logd50',
 CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
 
 for(i in 1:length(candvar)){
-  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit','BDnew')],leachH[,candvar[i]])
+  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit','logOM')],leachH[,candvar[i]])
   Cudata <- Cudata[complete.cases(Cudata),]
   
-  MCu1 <- lmer(logit(Curemove)~Retrofit+BDnew+(1|Cell_no),data=Cudata,REML=F)
-  MCu2 <- lmer(logit(Curemove)~Retrofit+BDnew+Cudata[[5]]+(1|Cell_no),data=Cudata,REML=F)
+  MCu1 <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=Cudata,REML=F)
+  MCu2 <- lmer(logit(Curemove)~Retrofit+logOM+Cudata[[5]]+(1|Cell_no),data=Cudata,REML=F)
   
   CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
 }
 
-CuHresult[order(CuHresult$Pval),] #Cu is close (p=0.045) but log(Cu) is not sig.
-
-#Third step model
-CuH3 <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+(1|Cell_no),data=leachH,REML=F)
-CuH4 <- lmer(logit(Curemove)~Retrofit*BDnew+Cu+Cu:Retrofit+(1|Cell_no),data=leachH,REML=F)
-anova(CuH3,CuH4)
-
-CuH5 <- lmer(logit(Curemove)~Retrofit*BDnew+Cu+Cu:BDnew+(1|Cell_no),data=leachH,REML=F)
-anova(CuH3,CuH5)
-  #None of the interactions are significant
-
-#Step 4, test for fourth fixed variable
-candvar <- c('Age','Kfs','logDrain','logCell','logDtoC','logBD','logd50',
-             'logCu','Location')
-
-CuHresult <- data.frame("Variable"=candvar,"Pval"=NA)
-
-for(i in 1:length(candvar)){
-  Cudata <- cbind(leachH[,c('Cell_no','Curemove','Retrofit','BDnew','Cu')],leachH[,candvar[i]])
-  Cudata <- Cudata[complete.cases(Cudata),]
-  
-  MCu1 <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+(1|Cell_no),data=Cudata,REML=F)
-  MCu2 <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+Cudata[[6]]+(1|Cell_no),data=Cudata,REML=F)
-  
-  CuHresult$Pval[i] <- anova(MCu2,MCu1)$P[2]
-}
-
-CuHresult[order(CuHresult$Pval),] #Add Cu
-#Nothing else is significant
 
 #FINAL MODEL
-CuH <- lmer(logit(Curemove)~Retrofit+BDnew+Cu+(1|Cell_no),data=leachH,REML=F)
+CuH <- lmer(logit(Curemove)~Retrofit+logOM+(1|Cell_no),data=leachH,REML=F)
 summary(CuH)
 plot(CuH)
 
-medBD <- quantile(leachH$BDnew,na.rm=T,0.5)
-medCu <- quantile(leachH$Cu,na.rm=T,0.5)
-lowBD <- quantile(leachH$BDnew,na.rm=T,0.1)
-lowCu <- quantile(leachH$Cu,na.rm=T,0.1)
+medOM <- quantile(leachH$logOM,na.rm=T,0.5)
+lowOM <- quantile(leachH$logOM,na.rm=T,0.1)
 
-inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=medCu),re.form=~0))
-inv.logit(predict(CuH,newdata=list(Retrofit="no",BDnew=medBD,Cu=medCu),re.form=~0))
-  #Retrofits sorb less Cu
-
-inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=medCu),re.form=~0))
-inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=lowCu),re.form=~0))
-  #Low Cu means less Cu sorbed
-
-inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=medBD,Cu=medCu),re.form=~0))
-inv.logit(predict(CuH,newdata=list(Retrofit="yes",BDnew=lowBD,Cu=medCu),re.form=~0))
-  #Low bulk density means less Cu sorbed
 
 #Find how many samples were at DL in retrofit cells
 with(leachH,tapply(Curemove,Retrofit,function(X){sum(X==max(X,na.rm=T),na.rm=T)}))
