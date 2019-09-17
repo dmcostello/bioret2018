@@ -341,3 +341,27 @@ legend("topright",legend=c(expression(italic("de novo")),"retrofit"),pch=c(5,19)
 
 dev.off()
 ```
+
+###Graphical abstract
+```{r graphical abstract}
+png(file="./Figures/abstract.png",height=4,width=4,units="in",res=600)
+par(pin=c(2.5,2.5))
+plot(0,0,xlim=c(0,1),ylim=c(0,1),xaxt="n",yaxt="n",cex=0,xlab="",ylab="")
+mtext("Age",side=1,line=0.5,cex=1.5)
+mtext("Soil parameter",side=2,line=0.5,cex=1.5)
+arrows(0,0.2,0.5,0.38,length=0.1,lwd=2,col="ivory4")
+text(0.67,0.33,"retrofit OM",col="ivory4")
+arrows(0,0.4,1,0.4,length=0.1,lwd=2,col="tan4")
+text(0.3,0.45,expression(paste(italic("de novo")," OM")),col="tan4")
+arrows(0,0.3,1,0.2,length=0.1,lwd=2,col="firebrick")
+text(0.8,0.15,"clay",col="firebrick")
+arrows(0,0.55,1,0.75,length=0.1,lwd=2,col="mediumseagreen")
+text(0.8,0.77,"Cu",col="mediumseagreen")
+arrows(0,0.5,1,0.7,length=0.1,lwd=2,col="mediumorchid4")
+text(0.8,0.6,"Pb",col="mediumorchid4")
+arrows(0,0.6,1,1,length=0.1,lwd=2,col="lightsteelblue")
+text(0.8,.98,"Zn",col="lightsteelblue")
+
+dev.off()
+```
+
